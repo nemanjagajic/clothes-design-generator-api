@@ -22,7 +22,7 @@ app.post('/webhook', (req, res) => {
   // Process the eventData and take actions as needed
   console.log('Webhook data received:', eventData.imageUrls);
 
-  io.emit('generatedImages', eventData.imageUrls)
+  io.emit(`generatedImages${eventData.ref}`, eventData.imageUrls)
 
   // Respond to the webhook request
   res.status(200).send('Webhook data received successfully');
