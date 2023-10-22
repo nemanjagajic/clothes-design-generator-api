@@ -17,14 +17,15 @@ const io = socketIo(server, { cors: { origin: '*' } });
 
 // Define your webhook endpoint
 app.post('/webhook', (req, res) => {
-  const eventData = req.body; // Data received from the webhook
+  const eventData = req.body;
 
-  // Process the eventData and take actions as needed
-  console.log('Webhook data received:', eventData.imageUrls);
+  console.log('Webhook data received:', {
+    content: eventData.content,
+    ref: eventData.ref,
+    images: eventData.imageUrls
+  });
 
   io.emit(`generatedImages${eventData.ref}`, eventData.imageUrls)
-
-  // Respond to the webhook request
   res.status(200).send('Webhook data received successfully');
 });
 
