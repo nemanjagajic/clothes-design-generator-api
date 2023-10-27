@@ -30,8 +30,6 @@ setInterval(() => {
     }
   } else if (requestBeingGenerated) {
     console.log(`Currently generating "${requestBeingGenerated.description}"...`)
-  } else {
-    console.log('Image requests queue empty')
   }
 }, 5000)
 
