@@ -6,7 +6,8 @@ const cors = require("cors")
 require('dotenv').config()
 
 const app = express();
-const PORT = 5000;
+const PORT = 5001;
+const TRANSLATION_CHAT_ID = '6569f069ebb4aaed1fe7988f'
 
 app.use(bodyParser.json());
 app.use(cors());
@@ -50,8 +51,21 @@ app.post('/webhook', (req, res) => {
 
 app.post('/generateImage', async (req, res) => {
   const { description, ref } = req.body
-  imageRequestsQueue.push({ description, ref, time: new Date()})
-  res.status(200).send({ message: 'Generating images initiated', numberInQueue: imageRequestsQueue.length });
+  try {
+    const response = await axios.post('http://46.101.119.178:5000/api/messages', {
+      chatId: TRANSLATION_CHAT_ID,
+      text: description
+    }, {
+      headers: {
+        'Authorization': `${process.env.TRANSLATOR_AUTH_TOKEN}`
+      }
+    })
+    const translatedDescription = response?.data?.message?.textTranslated
+    imageRequestsQueue.push({ description: translatedDescription, ref, time: new Date()})
+    res.status(200).send({ message: 'Generating images initiated', numberInQueue: imageRequestsQueue.length });
+  } catch (error) {
+    res.status(400).send({ message: 'Something went wrong, image creation not initiated' });
+  }
 })
 
 app.get('/imageRequestsQueue', (req, res) => {
@@ -73,11 +87,14 @@ io.on('connection', (socket) => {
 
 const generateImages = async (imageRequest) => {
   try {
-    axios.defaults.headers.common = {'Authorization': `Bearer ${process.env.THE_NEXT_LEG_TOKEN}`}
     await axios.post('https://api.thenextleg.io', {
       cmd: "imagine",
       msg: imageRequest.description,
       ref: imageRequest.ref
+    }, {
+      headers: {
+        'Authorization': `Bearer ${process.env.THE_NEXT_LEG_TOKEN}`
+      }
     })
     requestBeingGenerated = imageRequest
     return true
