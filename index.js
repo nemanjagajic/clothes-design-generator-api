@@ -72,19 +72,6 @@ app.get('/imageRequestsQueue', (req, res) => {
   res.status(200).send({ imageRequestsQueue: imageRequestsQueue, number: imageRequestsQueue.length })
 })
 
-io.on('connection', (socket) => {
-  console.log('A user connected');
-
-  socket.on('message', (data) => {
-    console.log('Message received:', data);
-    io.emit('message', data); // Broadcast the message to all connected clients
-  });
-
-  socket.on('disconnect', () => {
-    console.log('A user disconnected');
-  });
-});
-
 const generateImages = async (imageRequest) => {
   try {
     await axios.post('https://api.thenextleg.io', {
