@@ -23,26 +23,12 @@ let requestBeingGenerated = null
 
 setInterval(() => {
   if (imageRequestsQueue.length > 0 && !requestBeingGenerated) {
-    const isRequestSuccessfullySent = generateImages(imageRequestsQueue[0])
-    if (isRequestSuccessfullySent) {
-      console.log(`Sending request to generate: "${imageRequestsQueue[0].description}"...`)
-    } else {
-      console.log('Something failed while sending request to generate images')
-    }
-  } else if (requestBeingGenerated) {
-    console.log(`Currently generating "${requestBeingGenerated.description}"...`)
+    generateImages(imageRequestsQueue[0])
   }
 }, 5000)
 
 app.post('/webhook', (req, res) => {
   const eventData = req.body;
-
-  console.log('Webhook data received:', {
-    content: eventData.content,
-    ref: eventData.ref,
-    images: eventData.imageUrls
-  });
-
   io.emit(`generatedImages${eventData.ref}`, eventData.imageUrls)
   imageRequestsQueue = imageRequestsQueue.filter(irq => irq.ref !== eventData.ref)
   requestBeingGenerated = null
@@ -69,7 +55,7 @@ app.post('/generateImage', async (req, res) => {
 })
 
 app.get('/imageRequestsQueue', (req, res) => {
-  res.status(200).send({ imageRequestsQueue: imageRequestsQueue, number: imageRequestsQueue.length })
+  res.status(200).send({ imageRequestsQueue: imageRequestsQueue, requestBeingGenerated, queueLength: imageRequestsQueue.length })
 })
 
 const generateImages = async (imageRequest) => {
