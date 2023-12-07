@@ -55,7 +55,7 @@ app.post('/api/generateImage', async (req, res) => {
 })
 
 app.get('/api',(req, res) => {
-  res.send('Clothes design generator api successfully running API')
+  res.send('Clothes design generator api successfully running')
 })
 
 app.get('/api/imageRequestsQueue', (req, res) => {
