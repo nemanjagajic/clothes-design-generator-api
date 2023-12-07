@@ -58,6 +58,10 @@ app.get('/',(req, res) => {
   res.send('Clothes design generator api successfully running')
 })
 
+app.get('/api',(req, res) => {
+  res.send('Clothes design generator api successfully running API')
+})
+
 app.get('/imageRequestsQueue', (req, res) => {
   res.status(200).send({ imageRequestsQueue: imageRequestsQueue, requestBeingGenerated, queueLength: imageRequestsQueue.length })
 })
