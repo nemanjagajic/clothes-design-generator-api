@@ -76,3 +76,5 @@ const generateImages = async (imageRequest) => {
     return false
   }
 }
+
+module.exports = app
