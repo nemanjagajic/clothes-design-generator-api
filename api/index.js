@@ -27,7 +27,7 @@ setInterval(() => {
   }
 }, 5000)
 
-app.post('/webhook', (req, res) => {
+app.post('/api/webhook', (req, res) => {
   const eventData = req.body;
   io.emit(`generatedImages${eventData.ref}`, eventData.imageUrls)
   imageRequestsQueue = imageRequestsQueue.filter(irq => irq.ref !== eventData.ref)
@@ -35,7 +35,7 @@ app.post('/webhook', (req, res) => {
   res.status(200).send('Webhook data received successfully');
 });
 
-app.post('/generateImage', async (req, res) => {
+app.post('/api/generateImage', async (req, res) => {
   const { description, ref } = req.body
   try {
     const response = await axios.post('http://46.101.119.178:5000/api/messages', {
@@ -54,15 +54,11 @@ app.post('/generateImage', async (req, res) => {
   }
 })
 
-app.get('/',(req, res) => {
-  res.send('Clothes design generator api successfully running')
-})
-
 app.get('/api',(req, res) => {
   res.send('Clothes design generator api successfully running API')
 })
 
-app.get('/imageRequestsQueue', (req, res) => {
+app.get('/api/imageRequestsQueue', (req, res) => {
   res.status(200).send({ imageRequestsQueue: imageRequestsQueue, requestBeingGenerated, queueLength: imageRequestsQueue.length })
 })
 
