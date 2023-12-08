@@ -38,7 +38,7 @@ app.post('/webhook', (req, res) => {
 app.post('/generateImage', async (req, res) => {
   const { description, ref } = req.body
   try {
-    const response = await axios.post('http://46.101.119.178:5000/messages', {
+    const response = await axios.post('http://46.101.119.178:5000/api/messages', {
       chatId: TRANSLATION_CHAT_ID,
       text: description
     }, {
