@@ -6,7 +6,7 @@ const cors = require("cors")
 require('dotenv').config()
 
 const app = express()
-const PORT = 4000
+const PORT = 5001
 const TRANSLATION_CHAT_ID = '6569f069ebb4aaed1fe7988f'
 
 app.use(bodyParser.json())
