@@ -16,7 +16,7 @@ const server = app.listen(PORT, () => {
   console.log(`Server is listening at http://localhost:${PORT}`)
 })
 
-const io = socketIo(server, { cors: { origin: '*' } });
+const io = socketIo(server, { cors: { origin: '*' } })
 
 let imageRequestsQueue = []
 let requestBeingGenerated = null
