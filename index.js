@@ -27,7 +27,7 @@ setInterval(() => {
   }
 }, 5000)
 
-app.post('/api/webhook', (req, res) => {
+app.post('/webhook', (req, res) => {
   const eventData = req.body;
   io.emit(`generatedImages${eventData.ref}`, eventData.imageUrls)
   imageRequestsQueue = imageRequestsQueue.filter(irq => irq.ref !== eventData.ref)
@@ -35,10 +35,10 @@ app.post('/api/webhook', (req, res) => {
   res.status(200).send('Webhook data received successfully');
 });
 
-app.post('/api/generateImage', async (req, res) => {
+app.post('/generateImage', async (req, res) => {
   const { description, ref } = req.body
   try {
-    const response = await axios.post('http://46.101.119.178:5000/api/messages', {
+    const response = await axios.post('http://46.101.119.178:5000/messages', {
       chatId: TRANSLATION_CHAT_ID,
       text: description
     }, {
@@ -54,11 +54,11 @@ app.post('/api/generateImage', async (req, res) => {
   }
 })
 
-app.get('/api',(req, res) => {
+app.get('/',(req, res) => {
   res.send('Clothes design generator api successfully running')
 })
 
-app.get('/api/imageRequestsQueue', (req, res) => {
+app.get('/imageRequestsQueue', (req, res) => {
   res.status(200).send({ imageRequestsQueue: imageRequestsQueue, requestBeingGenerated, queueLength: imageRequestsQueue.length })
 })
 
