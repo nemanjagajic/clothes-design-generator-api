@@ -1,20 +1,20 @@
-const express = require('express');
-const bodyParser = require('body-parser');
+const express = require('express')
+const bodyParser = require('body-parser')
 const socketIo = require('socket.io')
 const axios= require("axios")
 const cors = require("cors")
 require('dotenv').config()
 
-const app = express();
-const PORT = 4000;
+const app = express()
+const PORT = 4000
 const TRANSLATION_CHAT_ID = '6569f069ebb4aaed1fe7988f'
 
-app.use(bodyParser.json());
-app.use(cors());
+app.use(bodyParser.json())
+app.use(cors())
 
 const server = app.listen(PORT, () => {
-  console.log(`Server is listening at http://localhost:${PORT}`);
-});
+  console.log(`Server is listening at http://localhost:${PORT}`)
+})
 
 const io = socketIo(server, { cors: { origin: '*' } });
 
