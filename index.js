@@ -62,9 +62,26 @@ app.get('/imageRequestsQueue', (req, res) => {
   res.status(200).send({ imageRequestsQueue: imageRequestsQueue, requestBeingGenerated, queueLength: imageRequestsQueue.length })
 })
 
+app.get('/getImageGenerationProgress', async (req, res) => {
+  if (!requestBeingGenerated) {
+    return res.status(200).send({ progress: 0, message: 'No request being generated' })
+  }
+
+  try {
+    const response = await axios.get(`https://api.thenextleg.io/v2/message/${requestBeingGenerated.messageId}`, {
+      headers: {
+        'Authorization': `Bearer ${process.env.THE_NEXT_LEG_TOKEN}`
+      }
+    })
+    res.status(200).send({ progress: response.data.progress })
+  } catch (error) {
+    return res.status(400).send({ progress: 0, message: error })
+  }
+})
+
 const generateImages = async (imageRequest) => {
   try {
-    await axios.post('https://api.thenextleg.io', {
+    const response = await axios.post('https://api.thenextleg.io', {
       cmd: "imagine",
       msg: imageRequest.description,
       ref: imageRequest.ref
@@ -73,7 +90,7 @@ const generateImages = async (imageRequest) => {
         'Authorization': `Bearer ${process.env.THE_NEXT_LEG_TOKEN}`
       }
     })
-    requestBeingGenerated = imageRequest
+    requestBeingGenerated = { ...imageRequest, messageId: response.data.messageId }
     return true
   } catch (error) {
     console.log(error)
