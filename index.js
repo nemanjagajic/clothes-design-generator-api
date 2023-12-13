@@ -75,7 +75,7 @@ app.get('/getImageGenerationProgress', async (req, res) => {
     })
     res.status(200).send({ progress: response.data.progress })
   } catch (error) {
-    return res.status(400).send({ progress: 0, message: error })
+    return res.status(200).send({ progress: 0, message: error, error: true })
   }
 })
 
