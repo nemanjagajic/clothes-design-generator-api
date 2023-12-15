@@ -59,7 +59,7 @@ app.get('/',(req, res) => {
 })
 
 app.get('/imageRequestsQueue', (req, res) => {
-  res.status(200).send({ imageRequestsQueue: imageRequestsQueue, requestBeingGenerated, queueLength: imageRequestsQueue.length })
+  res.status(200).send({ imageRequestsQueue, requestBeingGenerated, queueLength: imageRequestsQueue.length })
 })
 
 app.get('/getImageGenerationProgress', async (req, res) => {
@@ -77,6 +77,15 @@ app.get('/getImageGenerationProgress', async (req, res) => {
   } catch (error) {
     return res.status(200).send({ progress: 0, message: error, error: true })
   }
+})
+
+app.delete('/removeFromQueueByIndex/:index', (req, res) => {
+  const { index } = req.params
+  imageRequestsQueue = imageRequestsQueue.filter((irq, i) => i !== parseInt(index))
+  if (parseInt(index) === 0) {
+    requestBeingGenerated = null
+  }
+  res.status(200).send({ imageRequestsQueue, requestBeingGenerated, queueLength: imageRequestsQueue.length })
 })
 
 const generateImages = async (imageRequest) => {
