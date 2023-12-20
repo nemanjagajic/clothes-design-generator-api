@@ -35,7 +35,7 @@ app.post('/webhook', async (req, res) => {
   requestBeingGenerated = null
   try {
 
-    const emailsData = await axios.get('http://localhost:1337/api/email-refs')
+    const emailsData = await axios.get(`${process.env.STRAPI_BASE_URL}/api/email-refs`)
     if (emailsData?.data?.data) {
 
       const emails = emailsData.data.data
