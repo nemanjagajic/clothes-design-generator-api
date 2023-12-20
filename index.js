@@ -1,8 +1,9 @@
 const express = require('express')
 const bodyParser = require('body-parser')
 const socketIo = require('socket.io')
-const axios= require("axios")
+const axios = require("axios")
 const cors = require("cors")
+const mailer = require("./mailer");
 require('dotenv').config()
 
 const app = express()
@@ -27,12 +28,30 @@ setInterval(() => {
   }
 }, 5000)
 
-app.post('/webhook', (req, res) => {
+app.post('/webhook', async (req, res) => {
   const eventData = req.body;
   io.emit(`generatedImages${eventData.ref}`, eventData.imageUrls)
   imageRequestsQueue = imageRequestsQueue.filter(irq => irq.ref !== eventData.ref)
   requestBeingGenerated = null
-  res.status(200).send('Webhook data received successfully');
+  try {
+
+    const emailsData = await axios.get('http://localhost:1337/api/email-refs')
+    if (emailsData?.data?.data) {
+
+      const emails = emailsData.data.data
+      const emailToSendTo = emails.find((emailData) => {
+        return emailData.attributes.ref === eventData.ref
+      })
+
+      if (emailToSendTo?.attributes?.email) {
+        mailer.sendMail(emailToSendTo.attributes.email, eventData.imageUrls)
+      }
+    }
+    res.status(200).send('Webhook data received successfully');
+  } catch (error) {
+    console.log("Error receiving webhook data", error)
+  }
+  
 });
 
 app.post('/generateImage', async (req, res) => {
