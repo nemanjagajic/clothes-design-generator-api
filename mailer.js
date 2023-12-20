@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendMail = async (email, imageLinks = []) => {
-  const visitLink = `https://nosistamislis.rs?`;
+  const visitLink = `http://nosistamislis.rs?`;
   let baseUrl = visitLink;
   imageLinks.forEach((link, index) => {
     const encoded = encodeURIComponent(link)
