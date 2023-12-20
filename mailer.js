@@ -15,7 +15,8 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendMail = async (email, imageLinks = []) => {
-  let baseUrl = `http://localhost:3000?`;
+  const visitLink = `https://nosistamislis.rs?`;
+  let baseUrl = visitLink;
   imageLinks.forEach((link, index) => {
     const encoded = encodeURIComponent(link)
     baseUrl+=`img${index}=${encoded}&`
@@ -30,8 +31,8 @@ const sendMail = async (email, imageLinks = []) => {
         <h1 style="color: #5b7ab5;">Bravo, tvoja kreacija je gotova! 🪄</h1>
         <p style="font-size: 1.2rem;">Klikni na dugme ispod da vidiš svoju kreaciju:</p>
         <a href="${baseUrl}" style="display: inline-block; background-color: #5b7ab5; color: white; padding: 10px 20px; margin: 10px 0; text-decoration: none; border-radius: 4px;">Pogledaj</a>
-        <p style="font-size: 0.9rem; color: #999;"><a href="${baseUrl}" style="color: #5b7ab5;">${baseUrl}</a></p>
-        <p style="font-size: 0.9rem; color: #999;">Poseti nas na<a href="${baseUrl}" style="color: #5b7ab5;"> ${baseUrl}</a></p>  
+        <hr/>
+        <p style="font-size: 0.9rem; color: #999;">Poseti nas na<a href="${baseUrl}" style="color: #5b7ab5;"> ${baseUrl}</a></p>
       </div>
     `,
   };
