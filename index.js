@@ -51,8 +51,16 @@ app.post('/webhook', async (req, res) => {
   } catch (error) {
     console.log("Error receiving webhook data", error)
   }
-  
+
 });
+
+app.post('/submitOrder', async (req, res) => {
+  try {
+    mailer.sendOrderMail(req.body)
+  } catch (error) {
+    console.log("Error sending order mail ", error)
+  }
+})
 
 app.post('/generateImage', async (req, res) => {
   const { description, ref } = req.body
@@ -66,14 +74,14 @@ app.post('/generateImage', async (req, res) => {
       }
     })
     const translatedDescription = response?.data?.message?.textTranslated
-    imageRequestsQueue.push({ description: translatedDescription, ref, time: new Date()})
+    imageRequestsQueue.push({ description: translatedDescription, ref, time: new Date() })
     res.status(200).send({ message: 'Generating images initiated', numberInQueue: imageRequestsQueue.length });
   } catch (error) {
     res.status(400).send({ message: 'Something went wrong, image creation not initiated' });
   }
 })
 
-app.get('/',(req, res) => {
+app.get('/', (req, res) => {
   res.send('Clothes design generator api successfully running')
 })
 
