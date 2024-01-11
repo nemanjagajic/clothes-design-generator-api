@@ -2,7 +2,7 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const axios = require("axios")
 const cors = require("cors")
-const mailer = require("./mailer");
+const mailer = require("../mailer");
 require('dotenv').config()
 
 const app = express()
