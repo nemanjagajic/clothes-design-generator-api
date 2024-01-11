@@ -25,7 +25,7 @@ setInterval(() => {
   }
 }, 5000)
 
-app.post('/webhook', async (req, res) => {
+app.post('/api/webhook', async (req, res) => {
   const eventData = req.body;
   imageRequestsQueue = imageRequestsQueue.filter(irq => irq.ref !== eventData.ref)
   requestBeingGenerated = null
@@ -49,7 +49,7 @@ app.post('/webhook', async (req, res) => {
 
 });
 
-app.post('/submitOrder', async (req, res) => {
+app.post('/api/submitOrder', async (req, res) => {
   try {
     mailer.sendOrderMail(req.body)
   } catch (error) {
@@ -57,7 +57,7 @@ app.post('/submitOrder', async (req, res) => {
   }
 })
 
-app.post('/generateImage', async (req, res) => {
+app.post('/api/generateImage', async (req, res) => {
   const { description, ref } = req.body
   try {
     const response = await axios.post('http://46.101.119.178:5000/api/messages', {
@@ -76,15 +76,15 @@ app.post('/generateImage', async (req, res) => {
   }
 })
 
-app.get('/', (req, res) => {
+app.get('/api/', (req, res) => {
   res.send('Clothes design generator api successfully running')
 })
 
-app.get('/imageRequestsQueue', (req, res) => {
+app.get('/api/imageRequestsQueue', (req, res) => {
   res.status(200).send({ imageRequestsQueue, requestBeingGenerated, queueLength: imageRequestsQueue.length })
 })
 
-app.get('/getImageGenerationProgress', async (req, res) => {
+app.get('/api/getImageGenerationProgress', async (req, res) => {
   if (!requestBeingGenerated) {
     return res.status(200).send({ progress: 0, response: {}, message: 'No request being generated' })
   }
@@ -101,7 +101,7 @@ app.get('/getImageGenerationProgress', async (req, res) => {
   }
 })
 
-app.delete('/removeFromQueueByIndex/:index', (req, res) => {
+app.delete('/api/removeFromQueueByIndex/:index', (req, res) => {
   const { index } = req.params
   imageRequestsQueue = imageRequestsQueue.filter((irq, i) => i !== parseInt(index))
   if (parseInt(index) === 0) {
