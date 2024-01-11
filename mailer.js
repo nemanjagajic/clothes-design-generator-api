@@ -44,19 +44,25 @@ const sendMail = async (email, imageLinks = []) => {
   }
 };
 
+const genderToLabel = {
+  male: "Muški",
+  female: "Ženski"
+}
+
 const sendOrderMail = async (data) => {
   try {
-
+    const totalPrice = data.items.reduce((acc, item) => {
+      return acc + item.price * item.quantity
+    }, 0)
     const itemHTML = data.items.map(item => {
       return `
         <div style = "flex-basis: 45%; margin: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" >
           <img src="${item.imageUrl}" alt="Majica 1" style="width: 100%; height: auto; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
-            <p><strong>Tip:</strong> ${item.type}</p>
+            <p><strong>Tip:</strong> ${genderToLabel[item.gender]}</p>
             <p><strong>Boja:</strong> ${item.color}</p>
             <p><strong>Veličina:</strong> ${item.size}</p>
-            <p><strong>Cena:</strong> ${item.price}rsd</p>
-            <p><strong>Količina:</strong> ${item.quantity}rsd</p>
-
+            <p><strong>Količina:</strong> ${item.quantity}</p>
+            <p><strong>Cena:</strong> ${item.price * item.quantity}RSD</p>
           </div>
       `
     })
@@ -149,10 +155,9 @@ const sendOrderMail = async (data) => {
                 <p><strong>Email:</strong> ${data.email}</p>
             </div>
             <div class="order-details" style="display: flex; flex-wrap: wrap; justify-content: space-around;">
-            
                 ${itemHTML.join(' ')}
-            
             </div>
+            <p><strong>Ukupna cena: ${totalPrice}RSD</strong></p>
             
 
             <p>Svaka majica je kreirana sa posebnom pažnjom i inspirisana vašim idejama, što ih čini jedinstvenim kao što ste i vi! 🌟</p>
