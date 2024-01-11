@@ -1,6 +1,5 @@
 const express = require('express')
 const bodyParser = require('body-parser')
-const socketIo = require('socket.io')
 const axios = require("axios")
 const cors = require("cors")
 const mailer = require("./mailer");
@@ -17,8 +16,6 @@ const server = app.listen(PORT, () => {
   console.log(`Server is listening at http://localhost:${PORT}`)
 })
 
-const io = socketIo(server, { cors: { origin: '*' } })
-
 let imageRequestsQueue = []
 let requestBeingGenerated = null
 
@@ -30,14 +27,12 @@ setInterval(() => {
 
 app.post('/webhook', async (req, res) => {
   const eventData = req.body;
-  io.emit(`generatedImages${eventData.ref}`, eventData.imageUrls)
   imageRequestsQueue = imageRequestsQueue.filter(irq => irq.ref !== eventData.ref)
   requestBeingGenerated = null
   try {
 
     const emailsData = await axios.get(`${process.env.STRAPI_BASE_URL}/api/email-refs`)
     if (emailsData?.data?.data) {
-
       const emails = emailsData.data.data
       const emailToSendTo = emails.find((emailData) => {
         return emailData.attributes.ref === eventData.ref
@@ -91,7 +86,7 @@ app.get('/imageRequestsQueue', (req, res) => {
 
 app.get('/getImageGenerationProgress', async (req, res) => {
   if (!requestBeingGenerated) {
-    return res.status(200).send({ progress: 0, message: 'No request being generated' })
+    return res.status(200).send({ progress: 0, response: {}, message: 'No request being generated' })
   }
 
   try {
@@ -100,9 +95,9 @@ app.get('/getImageGenerationProgress', async (req, res) => {
         'Authorization': `Bearer ${process.env.THE_NEXT_LEG_TOKEN}`
       }
     })
-    res.status(200).send({ progress: response.data.progress })
+    res.status(200).send({ progress: response.data.progress, response: response.data.response })
   } catch (error) {
-    return res.status(200).send({ progress: 0, message: error, error: true })
+    return res.status(200).send({ progress: 0, response: {}, message: error, error: true })
   }
 })
 
