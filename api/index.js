@@ -26,9 +26,11 @@ setInterval(() => {
 }, 5000)
 
 app.post('/api/webhook', async (req, res) => {
-  const eventData = req.body;
-  imageRequestsQueue = imageRequestsQueue.filter(irq => irq.ref !== eventData.ref)
-  requestBeingGenerated = null
+  setTimeout(() => {
+    const eventData = req.body;
+    imageRequestsQueue = imageRequestsQueue.filter(irq => irq.ref !== eventData.ref)
+    requestBeingGenerated = null
+  }, 7000)
   try {
 
     // const emailsData = await axios.get(`${process.env.STRAPI_BASE_URL}/api/email-refs`)
