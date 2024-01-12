@@ -31,17 +31,17 @@ app.post('/api/webhook', async (req, res) => {
   requestBeingGenerated = null
   try {
 
-    const emailsData = await axios.get(`${process.env.STRAPI_BASE_URL}/api/email-refs`)
-    if (emailsData?.data?.data) {
-      const emails = emailsData.data.data
-      const emailToSendTo = emails.find((emailData) => {
-        return emailData.attributes.ref === eventData.ref
-      })
-
-      if (emailToSendTo?.attributes?.email) {
-        mailer.sendMail(emailToSendTo.attributes.email, eventData.imageUrls)
-      }
-    }
+    // const emailsData = await axios.get(`${process.env.STRAPI_BASE_URL}/api/email-refs`)
+    // if (emailsData?.data?.data) {
+    //   const emails = emailsData.data.data
+    //   const emailToSendTo = emails.find((emailData) => {
+    //     return emailData.attributes.ref === eventData.ref
+    //   })
+    //
+    //   if (emailToSendTo?.attributes?.email) {
+    //     mailer.sendMail(emailToSendTo.attributes.email, eventData.imageUrls)
+    //   }
+    // }
     res.status(200).send('Webhook data received successfully');
   } catch (error) {
     console.log("Error receiving webhook data", error)
