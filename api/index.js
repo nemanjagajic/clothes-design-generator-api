@@ -95,10 +95,6 @@ app.get('/api/getImageGenerationProgress', async (req, res) => {
         'Authorization': `Bearer ${process.env.THE_NEXT_LEG_TOKEN}`
       }
     })
-    if (response.data.progress === 100) {
-      imageRequestsQueue = imageRequestsQueue.filter(irq => irq.ref !== response.data.response.ref)
-      requestBeingGenerated = null
-    }
     res.status(200).send({ progress: response.data.progress, response: response.data.response })
   } catch (error) {
     return res.status(200).send({ progress: 0, response: {}, message: error, error: true })
