@@ -4,7 +4,9 @@ const axios = require("axios")
 const cors = require("cors")
 const mailer = require("../mailer");
 require('dotenv').config()
-
+const Filter = require('bad-words')
+const filter = new Filter()
+filter.addWords('suicide', 'suicidal')
 const app = express()
 const PORT = 5001
 const TRANSLATION_CHAT_ID = '6569f069ebb4aaed1fe7988f'
@@ -71,6 +73,11 @@ app.post('/api/generateImage', async (req, res) => {
       }
     })
     const translatedDescription = response?.data?.message?.textTranslated
+
+    if (filter.isProfane(translatedDescription)) {
+      res.status(422).send({ message: "Bad words" })
+      return
+    }
     imageRequestsQueue.push({ description: translatedDescription, ref, time: new Date() })
     res.status(200).send({ message: 'Generating images initiated', numberInQueue: imageRequestsQueue.length });
   } catch (error) {
