@@ -5,6 +5,8 @@ const cors = require("cors")
 const mailer = require("../mailer");
 require('dotenv').config()
 const Filter = require('bad-words')
+const https = require('https');
+const fs = require('fs');
 const filter = new Filter()
 filter.addWords('suicide', 'suicidal')
 const app = express()
@@ -14,9 +16,20 @@ const TRANSLATION_CHAT_ID = '6569f069ebb4aaed1fe7988f'
 app.use(bodyParser.json())
 app.use(cors())
 
-const server = app.listen(PORT, () => {
-  console.log(`Server is listening at http://localhost:${PORT}`)
-})
+if (process.env.ENV === 'production') {
+  const httpsOptions = {
+    key: fs.readFileSync('/etc/letsencrypt/live/nosistamislis.rs/privkey.pem'), // Replace with the path to your private key
+    cert: fs.readFileSync('/etc/letsencrypt/live/nosistamislis.rs/fullchain.pem') // Replace with the path to your certificate
+  };
+
+  https.createServer(httpsOptions, app).listen(PORT, () => {
+    console.log(`Server is listening at https://localhost:${PORT} (https)`);
+  });
+} else {
+  app.listen(PORT, () => {
+    console.log(`Server is listening at http://localhost:${PORT}`)
+  })
+}
 
 let imageRequestsQueue = []
 let requestBeingGenerated = null
