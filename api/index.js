@@ -44,7 +44,9 @@ app.post('/api/webhook', async (req, res) => {
   setTimeout(() => {
     const eventData = req.body;
     imageRequestsQueue = imageRequestsQueue.filter(irq => irq.ref !== eventData.ref)
-    requestBeingGenerated = null
+    if (requestBeingGenerated.ref === eventData.ref) {
+      requestBeingGenerated = null
+    }
   }, 7000)
   try {
 
