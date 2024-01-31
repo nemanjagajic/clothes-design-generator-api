@@ -31,42 +31,9 @@ if (process.env.ENV === 'production') {
   })
 }
 
-let imageRequestsQueue = []
-let requestBeingGenerated = null
-
-setInterval(() => {
-  if (imageRequestsQueue.length > 0 && !requestBeingGenerated) {
-    generateImages(imageRequestsQueue[0])
-  }
-}, 5000)
-
-app.post('/api/webhook', async (req, res) => {
-  setTimeout(() => {
-    const eventData = req.body;
-    imageRequestsQueue = imageRequestsQueue.filter(irq => irq.ref !== eventData.ref)
-    if (requestBeingGenerated.ref === eventData.ref) {
-      requestBeingGenerated = null
-    }
-  }, 7000)
-  try {
-
-    // const emailsData = await axios.get(`${process.env.STRAPI_BASE_URL}/api/email-refs`)
-    // if (emailsData?.data?.data) {
-    //   const emails = emailsData.data.data
-    //   const emailToSendTo = emails.find((emailData) => {
-    //     return emailData.attributes.ref === eventData.ref
-    //   })
-    //
-    //   if (emailToSendTo?.attributes?.email) {
-    //     mailer.sendMail(emailToSendTo.attributes.email, eventData.imageUrls)
-    //   }
-    // }
-    res.status(200).send('Webhook data received successfully');
-  } catch (error) {
-    console.log("Error receiving webhook data", error)
-  }
-
-});
+app.get('/api/', (req, res) => {
+  res.send('Clothes design generator api successfully running')
+})
 
 app.post('/api/submitOrder', async (req, res) => {
   try {
@@ -77,7 +44,7 @@ app.post('/api/submitOrder', async (req, res) => {
 })
 
 app.post('/api/generateImage', async (req, res) => {
-  const { description, ref } = req.body
+  const { description } = req.body
   try {
     const response = await axios.post('http://46.101.119.178:5000/api/messages', {
       chatId: TRANSLATION_CHAT_ID,
@@ -93,60 +60,40 @@ app.post('/api/generateImage', async (req, res) => {
       res.status(422).send({ message: "Bad words" })
       return
     }
-    imageRequestsQueue.push({ description: translatedDescription, ref, time: new Date() })
-    res.status(200).send({ message: 'Generating images initiated', numberInQueue: imageRequestsQueue.length });
+
+    const generateResponse = await generateImages(translatedDescription)
+    res.status(200).send({ message: 'Generating images initiated!', imageId: generateResponse.data.data.id });
+
   } catch (error) {
     res.status(400).send({ message: 'Something went wrong, image creation not initiated' });
   }
 })
 
-app.get('/api/', (req, res) => {
-  res.send('Clothes design generator api successfully running')
-})
-
-app.get('/api/imageRequestsQueue', (req, res) => {
-  res.status(200).send({ imageRequestsQueue, requestBeingGenerated, queueLength: imageRequestsQueue.length })
-})
-
-app.get('/api/getImageGenerationProgress', async (req, res) => {
-  if (!requestBeingGenerated) {
-    return res.status(200).send({ progress: 0, response: {}, message: 'No request being generated' })
-  }
+app.get('/api/getImageGenerationProgress/:index', async (req, res) => {
+  const { index } = req.params
 
   try {
-    const response = await axios.get(`https://api.thenextleg.io/v2/message/${requestBeingGenerated.messageId}`, {
+    const response = await axios.get(`https://cl.imagineapi.dev/items/images/${index}`, {
       headers: {
-        'Authorization': `Bearer ${process.env.THE_NEXT_LEG_TOKEN}`
+        'Authorization': `Bearer ${process.env.IMAGINE_API_TOKEN}`
       }
     })
-    res.status(200).send({ progress: response.data.progress, response: response.data.response })
+    res.status(200).send({ progress: response.data.data.progress || 0, response: response.data.data })
   } catch (error) {
     return res.status(200).send({ progress: 0, response: {}, message: error, error: true })
   }
 })
 
-app.delete('/api/removeFromQueueByIndex/:index', (req, res) => {
-  const { index } = req.params
-  imageRequestsQueue = imageRequestsQueue.filter((irq, i) => i !== parseInt(index))
-  if (parseInt(index) === 0) {
-    requestBeingGenerated = null
-  }
-  res.status(200).send({ imageRequestsQueue, requestBeingGenerated, queueLength: imageRequestsQueue.length })
-})
-
-const generateImages = async (imageRequest) => {
+const generateImages = async (description) => {
   try {
-    const response = await axios.post('https://api.thenextleg.io', {
-      cmd: "imagine",
-      msg: imageRequest.description,
-      ref: imageRequest.ref
+    const response = await axios.post('https://cl.imagineapi.dev/items/images', {
+      prompt: description,
     }, {
       headers: {
-        'Authorization': `Bearer ${process.env.THE_NEXT_LEG_TOKEN}`
+        'Authorization': `Bearer ${process.env.IMAGINE_API_TOKEN}`
       }
     })
-    requestBeingGenerated = { ...imageRequest, messageId: response.data.messageId }
-    return true
+    return response
   } catch (error) {
     console.log(error)
     return false
