@@ -68,6 +68,124 @@ const sendOrderMail = async (data) => {
     })
     const mailOptions = {
       from: EMAIL_USERNAME,
+      to: EMAIL_USERNAME,
+      subject: 'Nova porudzbina kreirana 🪄',
+      html: `
+      <!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            background-color: #f4f4f4; 
+        }
+        .email-container { 
+            max-width: 600px; 
+            margin: auto; 
+            background: #ffffff; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05); 
+        }
+        .header { 
+            background-color: #007bff; 
+            padding: 20px; 
+            text-align: center; 
+            color: white; 
+            border-top-left-radius: 8px; 
+            border-top-right-radius: 8px; 
+        }
+        .header h1 {
+            margin: 0;
+        }
+        .content { 
+            margin-top: 20px; 
+            padding: 0 20px; 
+        }
+        .footer { 
+            background-color: #f8f9fa; 
+            padding: 20px; 
+            margin-top: 20px; 
+            text-align: center; 
+            border-bottom-left-radius: 8px; 
+            border-bottom-right-radius: 8px; 
+        }
+        .order-details { 
+            background-color: #e9ecef; 
+            padding: 15px; 
+            margin-top: 15px; 
+            border-radius: 8px; 
+        }
+        a { 
+            color: #007bff; 
+            text-decoration: none; 
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .social-media img {
+            height: 24px; 
+            margin: 0 10px; 
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <!-- Ovde dodajte logo vaše prodavnice -->
+            <h1>🎉 Nova porudzbina! 🚀</h1>
+        </div>
+
+        <div class="content">
+            <div class="user-info" style="background-color: #e9ecef; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
+                <h3>Informacije o Kupcu:</h3>
+                <p><strong>Ime:</strong> ${data.firstName}</p>
+                <p><strong>Prezime:</strong> ${data.lastName}</p>
+                <p><strong>Telefon:</strong> ${data.phoneNumber}</p>
+                <p><strong>Grad:</strong> ${data.city}</p>
+                <p><strong>Adresa:</strong> ${data.address}</p>
+                <p><strong>Poštanski Broj:</strong> ${data.zipCode}</p>
+                <p><strong>Email:</strong> ${data.email}</p>
+            </div>
+            <div class="order-details" style="display: flex; flex-wrap: wrap; justify-content: space-around;">
+                ${itemHTML.join(' ')}
+            </div>
+            <p><strong>Ukupna cena: ${totalPrice}RSD</strong></p>
+        </div>
+    </div>
+</body>
+</html>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error(`Error sending batoo: ${error}`);
+  }
+}
+
+const sendMailToCustomer = async (data) => {
+  try {
+    const totalPrice = data.items.reduce((acc, item) => {
+      return acc + item.price * item.quantity
+    }, 0)
+    const itemHTML = data.items.map(item => {
+      return `
+        <div style = "flex-basis: 45%; margin: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" >
+          <img src="${item.imageUrl}" alt="Majica 1" style="width: 100%; height: auto; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
+            <p><strong>Tip:</strong> ${genderToLabel[item.gender]}</p>
+            <p><strong>Boja:</strong> ${item.color}</p>
+            <p><strong>Veličina:</strong> ${item.size}</p>
+            <p><strong>Količina:</strong> ${item.quantity}</p>
+            <p><strong>Cena:</strong> ${item.price * item.quantity}RSD</p>
+          </div>
+      `
+    })
+    const mailOptions = {
+      from: EMAIL_USERNAME,
       to: data.email,
       subject: 'Nova porudzbina! 🪄',
       html: `
@@ -189,5 +307,6 @@ const sendOrderMail = async (data) => {
 
 module.exports = {
   sendMail,
+  sendMailToCustomer,
   sendOrderMail
 };

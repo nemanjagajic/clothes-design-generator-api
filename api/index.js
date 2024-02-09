@@ -34,18 +34,6 @@ app.post('/api/webhook', async (req, res) => {
     requestBeingGenerated = null
   }, 7000)
   try {
-
-    // const emailsData = await axios.get(`${process.env.STRAPI_BASE_URL}/api/email-refs`)
-    // if (emailsData?.data?.data) {
-    //   const emails = emailsData.data.data
-    //   const emailToSendTo = emails.find((emailData) => {
-    //     return emailData.attributes.ref === eventData.ref
-    //   })
-    //
-    //   if (emailToSendTo?.attributes?.email) {
-    //     mailer.sendMail(emailToSendTo.attributes.email, eventData.imageUrls)
-    //   }
-    // }
     res.status(200).send('Webhook data received successfully');
   } catch (error) {
     console.log("Error receiving webhook data", error)
@@ -55,9 +43,16 @@ app.post('/api/webhook', async (req, res) => {
 
 app.post('/api/submitOrder', async (req, res) => {
   try {
-    mailer.sendOrderMail(req.body)
+    console.log("Vlada", req.body)
+    await mailer.sendMailToCustomer(req.body)
+    await mailer.sendOrderMail(req.body)
+
+    return res.status(200).send({ message: "Order successfull" })
+
   } catch (error) {
     console.log("Error sending order mail ", error)
+    return res.status(500).send({ message: "Order failed" })
+
   }
 })
 
