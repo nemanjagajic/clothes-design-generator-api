@@ -91,6 +91,18 @@ app.get('/api/getImageGenerationProgress/:index', async (req, res) => {
   }
 })
 
+app.post('/api/verify-captcha', async (req, res) => {
+  const token = req.body.captchaValue;
+  const secretKey = process.env.CAPTCHA_SECRET_KEY;
+  const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${token}`);
+
+  if (response.data.success) {
+    res.send({ success: true, message: "CAPTCHA verified successfully!" });
+  } else {
+    res.send({ success: false, message: "CAPTCHA verification failed." });
+  }
+});
+
 const generateImages = async (description) => {
   try {
     const response = await axios.post('https://cl.imagineapi.dev/items/images', {
