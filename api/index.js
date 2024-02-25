@@ -50,7 +50,7 @@ app.post('/api/submitOrder', async (req, res) => {
 
   } catch (error) {
     console.log("Error sending order mail ", error)
-    return res.status(500).send({ message: "Order failed" })
+    return res.status(500).send({ message: "Order failed", error: error.message })
 
   }
 })
