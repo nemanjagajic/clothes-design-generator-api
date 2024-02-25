@@ -51,10 +51,11 @@ const genderToLabel = {
 
 const sendOrderMail = async (data) => {
   try {
-    const totalPrice = data.items.reduce((acc, item) => {
+    const totalPrice = data.orderItems.reduce((acc, item) => {
       return acc + item.price * item.quantity
     }, 0)
-    const itemHTML = data.items.map(item => {
+
+    const itemHTML = data.orderItems.map(item => {
       return `
         <div style = "flex-basis: 45%; margin: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" >
           <img src="${item.imageUrl}" alt="Majica 1" style="width: 100%; height: auto; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
@@ -142,7 +143,7 @@ const sendOrderMail = async (data) => {
         <div class="content">
             <div class="user-info" style="background-color: #e9ecef; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
                 <h3>Informacije o Kupcu:</h3>
-                <p><strong>Ime:</strong> ${data.firstName}</p>
+                <p><strong>Ime:</strong> ${data.name}</p>
                 <p><strong>Prezime:</strong> ${data.lastName}</p>
                 <p><strong>Telefon:</strong> ${data.phoneNumber}</p>
                 <p><strong>Grad:</strong> ${data.city}</p>
@@ -169,10 +170,10 @@ const sendOrderMail = async (data) => {
 
 const sendMailToCustomer = async (data) => {
   try {
-    const totalPrice = data.items.reduce((acc, item) => {
+    const totalPrice = data.orderItems.reduce((acc, item) => {
       return acc + item.price * item.quantity
     }, 0)
-    const itemHTML = data.items.map(item => {
+    const itemHTML = data.orderItems.map(item => {
       return `
         <div style = "flex-basis: 45%; margin: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" >
           <img src="${item.imageUrl}" alt="Majica 1" style="width: 100%; height: auto; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
@@ -258,13 +259,13 @@ const sendMailToCustomer = async (data) => {
         </div>
 
         <div class="content">
-            <p>Zdravo ${data.firstName}! 👋</p>
+            <p>Zdravo ${data.name}! 👋</p>
             <p>Super vesti! Vaša narudžbina je uspešno primljena i već spremamo vaše unikatne majice. Evo šta možete očekivati u vašem paketu:</p>
             
             <!-- Sekcija Detalja Narudžbine -->
             <div class="user-info" style="background-color: #e9ecef; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
                 <h3>Informacije o Kupcu:</h3>
-                <p><strong>Ime:</strong> ${data.firstName}</p>
+                <p><strong>Ime:</strong> ${data.name}</p>
                 <p><strong>Prezime:</strong> ${data.lastName}</p>
                 <p><strong>Telefon:</strong> ${data.phoneNumber}</p>
                 <p><strong>Grad:</strong> ${data.city}</p>

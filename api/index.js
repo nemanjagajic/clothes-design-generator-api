@@ -41,6 +41,11 @@ app.post('/api/submitOrder', async (req, res) => {
     await mailer.sendMailToCustomer(req.body)
     await mailer.sendOrderMail(req.body)
 
+    await axios.post('http://nosistamislis.rs:1337/api/orders', {
+      data: {
+        ...req.body
+      }
+    })
     return res.status(200).send({ message: "Order successfull" })
 
   } catch (error) {
