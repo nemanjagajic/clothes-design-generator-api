@@ -1,10 +1,10 @@
 // mailer.js
 
-const nodemailer = require("nodemailer");
-const dotenv = require("dotenv");
-dotenv.config();
+const nodemailer = require('nodemailer')
+const dotenv = require('dotenv')
+dotenv.config()
 
-const { EMAIL_USERNAME, EMAIL_PASSWORD } = process.env;
+const { EMAIL_USERNAME, EMAIL_PASSWORD } = process.env
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -12,11 +12,11 @@ const transporter = nodemailer.createTransport({
     user: EMAIL_USERNAME,
     pass: EMAIL_PASSWORD,
   },
-});
+})
 
 const sendMail = async (email, imageLinks = []) => {
-  const visitLink = `http://nosistamislis.rs?`;
-  let baseUrl = visitLink;
+  const visitLink = `http://nosistamislis.rs?`
+  let baseUrl = visitLink
   imageLinks.forEach((link, index) => {
     const encoded = encodeURIComponent(link)
     baseUrl += `img${index}=${encoded}&`
@@ -35,18 +35,18 @@ const sendMail = async (email, imageLinks = []) => {
         <p style="font-size: 0.9rem; color: #999;">Poseti nas na<a href="${baseUrl}" style="color: #5b7ab5;"> ${baseUrl}</a></p>
       </div>
     `,
-  };
+  }
 
   try {
-    await transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions)
   } catch (error) {
-    console.error(`Error sending confirmation email: ${error}`);
+    console.error(`Error sending confirmation email: ${error}`)
   }
-};
+}
 
 const genderToLabel = {
-  male: "Muški",
-  female: "Ženski"
+  male: 'Muški',
+  female: 'Ženski',
 }
 
 const sendOrderMail = async (data) => {
@@ -55,10 +55,12 @@ const sendOrderMail = async (data) => {
       return acc + item.price * item.quantity
     }, 0)
 
-    const itemHTML = data.orderItems.map(item => {
+    const itemHTML = data.orderItems.map((item) => {
       return `
         <div style = "flex-basis: 45%; margin: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" >
-          <img src="${item.imageUrl}" alt="Majica 1" style="width: 100%; height: auto; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
+          <img src="${
+            item.imageUrl
+          }" alt="Majica 1" style="width: 100%; height: auto; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
             <p><strong>Tip:</strong> ${genderToLabel[item.gender]}</p>
             <p><strong>Boja:</strong> ${item.color}</p>
             <p><strong>Veličina:</strong> ${item.size}</p>
@@ -148,7 +150,6 @@ const sendOrderMail = async (data) => {
                 <p><strong>Telefon:</strong> ${data.phoneNumber}</p>
                 <p><strong>Grad:</strong> ${data.city}</p>
                 <p><strong>Adresa:</strong> ${data.address}</p>
-                <p><strong>Poštanski Broj:</strong> ${data.zipCode}</p>
                 <p><strong>Email:</strong> ${data.email}</p>
             </div>
             <div class="order-details" style="display: flex; flex-wrap: wrap; justify-content: space-around;">
@@ -160,11 +161,11 @@ const sendOrderMail = async (data) => {
 </body>
 </html>
       `,
-    };
+    }
 
-    await transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions)
   } catch (error) {
-    console.error(`Error sending batoo: ${error}`);
+    console.error(`Error sending batoo: ${error}`)
   }
 }
 
@@ -173,10 +174,12 @@ const sendMailToCustomer = async (data) => {
     const totalPrice = data.orderItems.reduce((acc, item) => {
       return acc + item.price * item.quantity
     }, 0)
-    const itemHTML = data.orderItems.map(item => {
+    const itemHTML = data.orderItems.map((item) => {
       return `
         <div style = "flex-basis: 45%; margin: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" >
-          <img src="${item.imageUrl}" alt="Majica 1" style="width: 100%; height: auto; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
+          <img src="${
+            item.imageUrl
+          }" alt="Majica 1" style="width: 100%; height: auto; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
             <p><strong>Tip:</strong> ${genderToLabel[item.gender]}</p>
             <p><strong>Boja:</strong> ${item.color}</p>
             <p><strong>Veličina:</strong> ${item.size}</p>
@@ -255,12 +258,12 @@ const sendMailToCustomer = async (data) => {
     <div class="email-container">
         <div class="header">
             <!-- Ovde dodajte logo vaše prodavnice -->
-            <h1>🎉 Vaše sjajne majice su već na putu! 🚀</h1>
+            <h1>✅ Porudžbina prihvaćena! 🚀</h1>
         </div>
 
         <div class="content">
             <p>Zdravo ${data.name}! 👋</p>
-            <p>Super vesti! Vaša narudžbina je uspešno primljena i već spremamo vaše unikatne majice. Evo šta možete očekivati u vašem paketu:</p>
+            <p>Super vesti! Vaša narudžbina je uspešno primljena i u obradi je. Evo šta možete očekivati u vašem paketu:</p>
             
             <!-- Sekcija Detalja Narudžbine -->
             <div class="user-info" style="background-color: #e9ecef; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
@@ -270,7 +273,6 @@ const sendMailToCustomer = async (data) => {
                 <p><strong>Telefon:</strong> ${data.phoneNumber}</p>
                 <p><strong>Grad:</strong> ${data.city}</p>
                 <p><strong>Adresa:</strong> ${data.address}</p>
-                <p><strong>Poštanski Broj:</strong> ${data.zipCode}</p>
                 <p><strong>Email:</strong> ${data.email}</p>
             </div>
             <div class="order-details" style="display: flex; flex-wrap: wrap; justify-content: space-around;">
@@ -279,35 +281,30 @@ const sendMailToCustomer = async (data) => {
             <p><strong>Ukupna cena: ${totalPrice}RSD</strong></p>
             
 
-            <p>Svaka majica je kreirana sa posebnom pažnjom i inspirisana vašim idejama, što ih čini jedinstvenim kao što ste i vi! 🌟</p>
+            <p>Svaka majica je kreirana sa posebnom pažnjom i inspirisana vašim idejama 🌟</p>
         </div>
 
         <div class="footer">
-            <p>Hvala vam što ste izabrali Nosi šta misliš za vaše personalizovane majice! Nadamo se da će vam doneti radost i dodati boju vašem stilu. 😊</p>
-            <p>Ako imate bilo kakva pitanja ili vam treba pomoć, slobodno nam se obratite na nosistamislis@gmail.com. Uvek smo tu za vas!</p>
             
-            <div class="social-media">
-                <!-- Dodajte ikone i linkove vaših društvenih mreža -->
-                <a href="#"><img src="path_to_your_facebook_icon" alt="Facebook"></a>
-                <a href="#"><img src="path_to_your_twitter_icon" alt="Twitter"></a>
-                <a href="#"><img src="path_to_your_instagram_icon" alt="Instagram"></a>
-                <!-- Dodajte više društvenih mreža po potrebi -->
-            </div>
+            <p>Za bilo kakva pitanja ili vam treba pomoć, slobodno nam se obratite na nosistamislis@gmail.com</p>
+            <p>Hvala na poverenju,</p>
+
+            <i>Nosi Šta Misliš tim</i>
         </div>
     </div>
 </body>
 </html>
       `,
-    };
+    }
 
-    await transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions)
   } catch (error) {
-    console.error(`Error sending batoo: ${error}`);
+    console.error(`Error sending batoo: ${error}`)
   }
 }
 
 module.exports = {
   sendMail,
   sendMailToCustomer,
-  sendOrderMail
-};
+  sendOrderMail,
+}
