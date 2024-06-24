@@ -9,7 +9,7 @@ const https = require('https')
 const fs = require('fs')
 const filter = new Filter()
 filter.addWords('suicide', 'suicidal')
-filter.removeWords('hells')
+filter.removeWords('hells', 'hell')
 const app = express()
 const PORT = 5001
 const TRANSLATION_CHAT_ID = '6569f069ebb4aaed1fe7988f'
