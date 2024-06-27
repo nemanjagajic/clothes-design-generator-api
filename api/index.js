@@ -101,7 +101,7 @@ app.get('/api/getImageGenerationProgress/:task_id', async (req, res) => {
       { task_id:task_id},
       {
         headers: {
-          'X-API-KEY': `423f95cfb024d61c03775cba7ab1c83477b244188137de4494c1850c028db213`,
+          'X-API-KEY': `${process.env.GO_API_TOKEN}`,
         },
       },
     )
@@ -149,7 +149,7 @@ const generateImages = async (description) => {
       },
       {
         headers: {
-          'X-API-KEY': `423f95cfb024d61c03775cba7ab1c83477b244188137de4494c1850c028db213`,
+          'X-API-KEY': `${process.env.GO_API_TOKEN}`,
         },
       }
     )
