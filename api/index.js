@@ -40,7 +40,6 @@ app.get('/api/', (req, res) => {
 
 app.post('/api/submitOrder', async (req, res) => {
   try {
-    console.log('Vlada', req.body)
     await mailer.sendMailToCustomer(req.body)
     await mailer.sendOrderMail(req.body)
 
@@ -81,9 +80,10 @@ app.post('/api/generateImage', async (req, res) => {
     }
 
     const generateResponse = await generateImages(translatedDescription)
+    
     res.status(200).send({
       message: 'Generating images initiated!',
-      imageId: generateResponse.data.data.id,
+      imageId: generateResponse.data.task_id,
     })
   } catch (error) {
     res
@@ -92,28 +92,35 @@ app.post('/api/generateImage', async (req, res) => {
   }
 })
 
-app.get('/api/getImageGenerationProgress/:index', async (req, res) => {
-  const { index } = req.params
+app.get('/api/getImageGenerationProgress/:task_id', async (req, res) => {
+  const { task_id } = req.params
 
   try {
-    const response = await axios.get(
-      `https://cl.imagineapi.dev/items/images/${index}`,
+    const response = await axios.post(
+      `https://api.midjourneyapi.xyz/mj/fetch`,
+      { task_id:task_id},
       {
         headers: {
-          Authorization: `Bearer ${process.env.IMAGINE_API_TOKEN}`,
+          'X-API-KEY': `423f95cfb024d61c03775cba7ab1c83477b244188137de4494c1850c028db213`,
         },
-      }
+      },
     )
-    if (response.data.data.error) {
-      return res.status(403).send({ error: 'Forbidden prompt' })
+
+
+    if (!response.data.task_result.image_url) {
+      return res
+      .status(200)
+      .send({ progress: 0, error: false, status: "pending" })
     }
-    res.status(200).send({
-      progress: response.data.data.progress || 0,
-      response: response.data.data,
-    })
+
+    if (response.data.task_result.image_url) {
+      return res.status(200).send({
+        image_url: response.data.task_result.image_url
+      })
+    }
   } catch (error) {
     return res
-      .status(200)
+      .status(500)
       .send({ progress: 0, response: {}, message: error, error: true })
   }
 })
@@ -135,13 +142,14 @@ app.post('/api/verify-captcha', async (req, res) => {
 const generateImages = async (description) => {
   try {
     const response = await axios.post(
-      'https://cl.imagineapi.dev/items/images',
+      'https://api.midjourneyapi.xyz/mj/v2/imagine',
       {
         prompt: description,
+        process_mode: 'fast'
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.IMAGINE_API_TOKEN}`,
+          'X-API-KEY': `423f95cfb024d61c03775cba7ab1c83477b244188137de4494c1850c028db213`,
         },
       }
     )

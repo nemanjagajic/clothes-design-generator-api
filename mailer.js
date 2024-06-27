@@ -59,8 +59,9 @@ const sendOrderMail = async (data) => {
       return `
         <div style = "flex-basis: 45%; margin: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" >
           <img src="${
-            item.imageUrl
+            item.mainImageUrl
           }" alt="Majica 1" style="width: 100%; height: auto; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
+            <p><strong>Majica broj:</strong> ${item.imageIndex}</p>
             <p><strong>Tip:</strong> ${genderToLabel[item.gender]}</p>
             <p><strong>Boja:</strong> ${item.color}</p>
             <p><strong>Veličina:</strong> ${item.size}</p>
@@ -178,8 +179,9 @@ const sendMailToCustomer = async (data) => {
       return `
         <div style = "flex-basis: 45%; margin: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 8px;" >
           <img src="${
-            item.imageUrl
+            item.mainImageUrl
           }" alt="Majica 1" style="width: 100%; height: auto; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
+            <p><strong>Majica broj:</strong> ${item.imageIndex}</p>
             <p><strong>Tip:</strong> ${genderToLabel[item.gender]}</p>
             <p><strong>Boja:</strong> ${item.color}</p>
             <p><strong>Veličina:</strong> ${item.size}</p>
