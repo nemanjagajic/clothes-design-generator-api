@@ -60,35 +60,42 @@ app.post('/api/submitOrder', async (req, res) => {
 app.post('/api/generateImage', async (req, res) => {
   const { description } = req.body
   try {
-    const response = await axios.post(
-      'http://46.101.119.178:5000/api/messages',
-      {
-        chatId: TRANSLATION_CHAT_ID,
-        text: description,
-      },
-      {
-        headers: {
-          Authorization: `${process.env.TRANSLATOR_AUTH_TOKEN}`,
-        },
-      }
-    )
-    const translatedDescription = response?.data?.message?.textTranslated
+     res.status(200).send({
+      message: 'Generating images initiated!',
+      imageId: 'mocked_id_123',
+    })
+    return
+    // const response = await axios.post(
+    //   'http://46.101.119.178:5000/api/messages',
+    //   {
+    //     chatId: TRANSLATION_CHAT_ID,
+    //     text: description,
+    //   },
+    //   {
+    //     headers: {
+    //       Authorization: `${process.env.TRANSLATOR_AUTH_TOKEN}`,
+    //     },
+    //   }
+    // )
+    // const translatedDescription = response?.data?.message?.textTranslated
 
-    if (filter.isProfane(translatedDescription)) {
-      res.status(422).send({ message: 'Bad words' })
-      return
-    }
+    // if (filter.isProfane(translatedDescription)) {
+    //   res.status(422).send({ message: 'Bad words' })
+    //   return
+    // }
 
-    const generateResponse = await generateImages(translatedDescription)
+    // const generateResponse = await generateImages(translatedDescription)
     
+    // res.status(200).send({
+    //   message: 'Generating images initiated!',
+    //   imageId: 'mocked_id_123',
+    // })
+  } catch (error) {
+    console.log("errorcina")
     res.status(200).send({
       message: 'Generating images initiated!',
-      imageId: generateResponse.data.task_id,
+      imageId: 'mocked_id_123',
     })
-  } catch (error) {
-    res
-      .status(400)
-      .send({ message: 'Something went wrong, image creation not initiated' })
   }
 })
 
@@ -96,6 +103,11 @@ app.get('/api/getImageGenerationProgress/:task_id', async (req, res) => {
   const { task_id } = req.params
 
   try {
+    if (task_id === 'mocked_id_123') {
+      return res.status(200).send({
+        image_url: 'https://cdn.discordapp.com/attachments/990816889657778196/1258302571127242804/jerryam._A_close-up_image_in_stunning_4K_resolution_features_th_e066f190-b7d7-407b-a790-5dc7f4e77d22.png?ex=66878d17&is=66863b97&hm=63a29ce7161bf0a6cada3a073e1d5219f0f87e99edeb3443db4bfa5a92b95925&'
+      })
+    }
     const response = await axios.post(
       `https://api.midjourneyapi.xyz/mj/fetch`,
       { task_id:task_id},
@@ -105,7 +117,6 @@ app.get('/api/getImageGenerationProgress/:task_id', async (req, res) => {
         },
       },
     )
-
 
     if (!response.data.task_result.image_url) {
       return res
