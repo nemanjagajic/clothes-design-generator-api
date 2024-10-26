@@ -59,75 +59,60 @@ app.post('/api/submitOrder', async (req, res) => {
 })
 
 app.post('/api/generateImage', async (req, res) => {
-  const { description } = req.body
+  const { prompt } = req.body
   try {
-     res.status(200).send({
-      message: 'Generating images initiated!',
-      imageId: 'mocked_id_123',
-    })
-    return
-    // const response = await axios.post(
-    //   'http://46.101.119.178:5000/api/messages',
-    //   {
-    //     chatId: TRANSLATION_CHAT_ID,
-    //     text: description,
-    //   },
-    //   {
-    //     headers: {
-    //       Authorization: `${process.env.TRANSLATOR_AUTH_TOKEN}`,
-    //     },
-    //   }
-    // )
-    // const translatedDescription = response?.data?.message?.textTranslated
+    const response = await axios.post(
+      'http://46.101.119.178:5000/api/messages',
+      {
+        chatId: TRANSLATION_CHAT_ID,
+        text: prompt,
+      },
+      {
+        headers: {
+          Authorization: `${process.env.TRANSLATOR_AUTH_TOKEN}`,
+        },
+      }
+    )
+    const translatedPrompt = response?.data?.message?.textTranslated
 
-    // if (filter.isProfane(translatedDescription)) {
-    //   res.status(422).send({ message: 'Bad words' })
-    //   return
-    // }
-
-    // const generateResponse = await generateImages(translatedDescription)
-
-    // res.status(200).send({
-    //   message: 'Generating images initiated!',
-    //   imageId: 'mocked_id_123',
-    // })
-  } catch (error) {
-    console.log("errorcina")
+    if (filter.isProfane(translatedPrompt)) {
+      res.status(422).send({ message: 'Bad words' })
+      return
+    }
+    const generateResponse = await generateImages(translatedPrompt)
     res.status(200).send({
       message: 'Generating images initiated!',
-      imageId: 'mocked_id_123',
+      imageId: generateResponse.data.sdGenerationJob.generationId,
+    })
+  } catch (error) {
+    res.status(500).send({
+      message: 'Server error',
+      error
     })
   }
 })
 
 app.get('/api/getImageGenerationProgress/:task_id', async (req, res) => {
   const { task_id } = req.params
-
   try {
-    if (task_id === 'mocked_id_123') {
-      return res.status(200).send({
-        image_url: 'https://cdn.discordapp.com/attachments/990816889657778196/1258302571127242804/jerryam._A_close-up_image_in_stunning_4K_resolution_features_th_e066f190-b7d7-407b-a790-5dc7f4e77d22.png?ex=66878d17&is=66863b97&hm=63a29ce7161bf0a6cada3a073e1d5219f0f87e99edeb3443db4bfa5a92b95925&'
-      })
-    }
-    const response = await axios.post(
-      `https://api.midjourneyapi.xyz/mj/fetch`,
-      { task_id:task_id},
+    const response = await axios.get(
+      `https://cloud.leonardo.ai/api/rest/v1/generations/${task_id}`,
       {
         headers: {
-          'X-API-KEY': `${process.env.GO_API_TOKEN}`,
+          'authorization': `Bearer ${process.env.LEONARDO_API_TOKEN}`,
         },
       },
     )
 
-    if (!response.data.task_result.image_url) {
+    if (!response?.data?.generations_by_pk?.generated_images?.length) {
       return res
       .status(200)
       .send({ progress: 0, error: false, status: "pending" })
     }
 
-    if (response.data.task_result.image_url) {
+    if (response?.data?.generations_by_pk?.generated_images) {
       return res.status(200).send({
-        image_url: response.data.task_result.image_url
+        image_urls: response?.data?.generations_by_pk?.generated_images
       })
     }
   } catch (error) {
@@ -151,17 +136,24 @@ app.post('/api/verify-captcha', async (req, res) => {
   }
 })
 
-const generateImages = async (description) => {
+const generateImages = async (prompt) => {
   try {
     const response = await axios.post(
-      'https://api.midjourneyapi.xyz/mj/v2/imagine',
+      'https://cloud.leonardo.ai/api/rest/v1/generations/',
       {
-        prompt: description,
-        process_mode: 'fast'
+        "modelId": "6b645e3a-d64f-4341-a6d8-7a3690fbf042",
+        "contrast": 3.5,
+        "prompt": prompt,
+        "num_images": 4,
+        "width": 1080,
+        "height": 1080,
+        "ultra": false,
+        "styleUUID": "111dc692-d470-4eec-b791-3475abac4c46",
+        "enhancePrompt": false
       },
       {
         headers: {
-          'X-API-KEY': `${process.env.GO_API_TOKEN}`,
+          'authorization': `Bearer ${process.env.LEONARDO_API_TOKEN}`,
         },
       }
     )
