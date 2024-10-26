@@ -11,6 +11,7 @@ const filter = new Filter()
 filter.addWords('suicide', 'suicidal')
 filter.removeWords('hells', 'hell')
 const app = express()
+const paypalService = require('../paypalService');
 const PORT = 5001
 const TRANSLATION_CHAT_ID = '6569f069ebb4aaed1fe7988f'
 
@@ -85,7 +86,7 @@ app.post('/api/generateImage', async (req, res) => {
     // }
 
     // const generateResponse = await generateImages(translatedDescription)
-    
+
     // res.status(200).send({
     //   message: 'Generating images initiated!',
     //   imageId: 'mocked_id_123',
@@ -170,5 +171,37 @@ const generateImages = async (description) => {
     return false
   }
 }
+
+app.post("/api/token", async (req, res) => {
+  try {
+    const { jsonResponse, httpStatusCode } = await paypalService.generateClientToken();
+    res.status(httpStatusCode).json(jsonResponse);
+  } catch (error) {
+    console.error("Failed to generate client token:", error);
+    res.status(500).send({ error: "Failed to generate client token." });
+  }
+});
+
+app.post("/api/orders", async (req, res) => {
+  try {
+    const { orderId, price } = req.body;
+    const { jsonResponse, httpStatusCode } = await paypalService.createOrder({ orderId, price});
+    res.status(httpStatusCode).json(jsonResponse);
+  } catch (error) {
+    console.error("Failed to create order:", error);
+    res.status(500).json({ error: "Failed to create order." });
+  }
+});
+
+app.post("/api/orders/:orderID/capture", async (req, res) => {
+  try {
+    const { orderID } = req.params;
+    const { jsonResponse, httpStatusCode } = await paypalService.captureOrder(orderID);
+    res.status(httpStatusCode).json(jsonResponse);
+  } catch (error) {
+    console.error("Failed to capture order:", error);
+    res.status(500).json({ error: "Failed to capture order." });
+  }
+});
 
 module.exports = app
