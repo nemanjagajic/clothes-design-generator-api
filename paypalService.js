@@ -48,9 +48,7 @@ const generateClientToken = async () => {
 /**
  * Create an order to start the transaction.
  */
-const createOrder = async ({ orderId, price }) => {
-  console.log("orderId frontend:", orderId, price);
-
+const createOrder = async (price) => {
   const accessToken = await generateAccessToken();
   const url = `${base}/v2/checkout/orders`;
   const payload = {
@@ -71,8 +69,6 @@ const createOrder = async ({ orderId, price }) => {
       Authorization: `Bearer ${accessToken}`,
     },
   });
-
-  console.log(response.data)
 
   return handleResponse(response);
 };

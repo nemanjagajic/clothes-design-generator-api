@@ -174,10 +174,10 @@ app.post("/api/token", async (req, res) => {
   }
 });
 
-app.post("/api/orders", async (req, res) => {
+app.post("/api/paypal/orders", async (req, res) => {
   try {
-    const { orderId, price } = req.body;
-    const { jsonResponse, httpStatusCode } = await paypalService.createOrder({ orderId, price});
+    const { price } = req.body;
+    const { jsonResponse, httpStatusCode } = await paypalService.createOrder(price);
     res.status(httpStatusCode).json(jsonResponse);
   } catch (error) {
     console.error("Failed to create order:", error);
@@ -185,7 +185,7 @@ app.post("/api/orders", async (req, res) => {
   }
 });
 
-app.post("/api/orders/:orderID/capture", async (req, res) => {
+app.post("/api/paypal/orders/:orderID/capture", async (req, res) => {
   try {
     const { orderID } = req.params;
     const { jsonResponse, httpStatusCode } = await paypalService.captureOrder(orderID);
