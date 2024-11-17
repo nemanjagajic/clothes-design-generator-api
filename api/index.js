@@ -87,7 +87,7 @@ app.post('/api/generateImage', async (req, res) => {
   } catch (error) {
     console.log("Error bato", error, error?.message)
     res.status(500).send({
-      message: 'Server error',
+      message: 'Server error sorry',
       error: error
     })
   }
