@@ -85,9 +85,10 @@ app.post('/api/generateImage', async (req, res) => {
       imageId: generateResponse.data.sdGenerationJob.generationId,
     })
   } catch (error) {
+    console.log("Error bato", error, error?.message)
     res.status(500).send({
       message: 'Server error',
-      error
+      error: error
     })
   }
 })
