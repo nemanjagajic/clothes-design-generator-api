@@ -57,6 +57,30 @@ app.post('/api/submitOrder', async (req, res) => {
       .send({ message: 'Order failed', error: error.message })
   }
 })
+app.post('/api/contactUs', async (req, res) => {
+  try {
+    const { email, message } = req.body;
+
+    // Validate email and message
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).send({ message: 'Invalid email' });
+    }
+    if (!message || typeof message !== 'string') {
+      return res.status(400).send({ message: 'Invalid message' });
+    }
+
+    await mailer.sendMail({
+      to: 'nosistamislis@gmail.com',
+      subject: 'New Contact Us Message',
+      text: `From: ${email}\n\nMessage:\n${message}`,
+    });
+
+    return res.status(200).send({ message: 'Message sent successfully' });
+  } catch (error) {
+    console.log('Error sending contact message: ', error);
+    return res.status(500).send({ message: 'Message sending failed', error: error.message });
+  }
+});
 
 app.post('/api/generateImage', async (req, res) => {
   const { prompt } = req.body
