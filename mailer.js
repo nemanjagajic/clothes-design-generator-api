@@ -51,7 +51,7 @@ const sendContactUsEmail = async ({ text }) => {
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_USERNAME,
+      from: EMAIL_USERNAME,
       to: EMAIL_USERNAME,
       subject: 'New Contact Us Message',
       text,
