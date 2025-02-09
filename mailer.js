@@ -59,7 +59,6 @@ const sendContactUsEmail = async ({ text }) => {
 
     await transporter.sendMail(mailOptions);
 
-    console.log('Contact Us email sent successfully');
     return { success: true };
   } catch (error) {
     console.error('Error sending Contact Us email:', error);
