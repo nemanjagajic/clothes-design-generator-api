@@ -52,7 +52,7 @@ const sendContactUsEmail = async ({ text }) => {
 
     const mailOptions = {
       from: process.env.EMAIL_USERNAME,
-      to: 'nosistamislis@gmail.com',
+      to: EMAIL_USERNAME,
       subject: 'New Contact Us Message',
       text,
     };
