@@ -69,9 +69,7 @@ app.post('/api/contactUs', async (req, res) => {
       return res.status(400).send({ message: 'Invalid message' });
     }
 
-    await mailer.sendMail({
-      to: 'nosistamislis@gmail.com',
-      subject: 'New Contact Us Message',
+    await mailer.sendContactUsEmail({
       text: `From: ${email}\n\nMessage:\n${message}`,
     });
 

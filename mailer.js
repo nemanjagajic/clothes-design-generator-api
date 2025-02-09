@@ -44,6 +44,30 @@ const sendMail = async (email, imageLinks = []) => {
   }
 }
 
+const sendContactUsEmail = async ({ text }) => {
+  try {
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      throw new Error('Invalid message');
+    }
+
+    const mailOptions = {
+      from: process.env.EMAIL_USERNAME,
+      to: 'nosistamislis@gmail.com',
+      subject: 'New Contact Us Message',
+      text,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    console.log('Contact Us email sent successfully');
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending Contact Us email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+
 const genderToLabel = {
   male: 'Muški',
   female: 'Ženski',
@@ -309,4 +333,5 @@ module.exports = {
   sendMail,
   sendMailToCustomer,
   sendOrderMail,
+  sendContactUsEmail
 }
