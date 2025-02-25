@@ -44,11 +44,17 @@ app.post('/api/submitOrder', async (req, res) => {
     await mailer.sendMailToCustomer(req.body)
     await mailer.sendOrderMail(req.body)
 
-    await axios.post('http://nosistamislis.rs:1337/api/orders', {
-      data: {
-        ...req.body,
-      },
-    })
+    // Try to send the order to the external service, but ignore errors
+    try {
+      await axios.post('http://nosistamislis.rs:1337/api/orders', {
+        data: {
+          ...req.body,
+        },
+      });
+    } catch (error) {
+      // We don't throw here so it doesn't affect the main response
+    }
+
     return res.status(200).send({ message: 'Order successfull' })
   } catch (error) {
     console.log('Error sending order mail ', error)
