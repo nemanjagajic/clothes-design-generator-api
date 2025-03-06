@@ -4,12 +4,8 @@ const axios = require('axios')
 const cors = require('cors')
 const mailer = require('../mailer')
 require('dotenv').config()
-const Filter = require('bad-words')
 const https = require('https')
 const fs = require('fs')
-const filter = new Filter()
-filter.addWords('suicide', 'suicidal')
-filter.removeWords('hells', 'hell')
 const app = express()
 const paypalService = require('../paypalService');
 const PORT = 5001
@@ -103,10 +99,6 @@ app.post('/api/generateImage', async (req, res) => {
     )
     const translatedPrompt = response?.data?.message?.textTranslated
 
-    if (filter.isProfane(translatedPrompt)) {
-      res.status(422).send({ message: 'Bad words' })
-      return
-    }
     const generateResponse = await generateImages(translatedPrompt)
     res.status(200).send({
       message: 'Generating images initiated!',
