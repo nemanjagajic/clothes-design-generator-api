@@ -12,35 +12,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendMail = async (email, imageLinks = []) => {
-  const visitLink = `https://kreiraj.rs?`;
-  let baseUrl = visitLink;
-  imageLinks.forEach((link, index) => {
-    const encoded = encodeURIComponent(link);
-    baseUrl += `img${index}=${encoded}&`;
-  });
-  baseUrl = baseUrl.slice(0, -1);
-
-  const mailOptions = {
-    from: EMAIL_USERNAME,
-    to: email,
-    subject: 'Kreiraj - Tvoja kreacija je gotova! 🪄',
-    html: `
-      <div style="font-family: Arial, sans-serif; text-align: center;">
-        <h1 style="color: #5b7ab5;">Bravo, tvoja kreacija je gotova! 🪄</h1>
-        <p style="font-size: 1.2rem;">Klikni na dugme ispod da vidiš svoju kreaciju:</p>
-        <a href="${baseUrl}" style="display: inline-block; background-color: #5b7ab5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Pogledaj</a>
-      </div>
-    `,
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-  } catch (error) {
-    console.error(`Error sending confirmation email: ${error}`);
-  }
-};
-
 const sendContactUsEmail = async ({ text }) => {
   try {
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
@@ -95,18 +66,21 @@ const sendOrderMail = async (data) => {
       to: EMAIL_USERNAME,
       subject: '✅ Nova porudžbina kreirana! 🚀',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; text-align: center;">
-          <div style="background-color: #007bff; padding: 20px; color: white; border-radius: 8px;">
-            <h2>✅ Porudžbina prihvaćena! 🚀</h2>
-          </div>
-          <p>Vaša porudžbina je uspešno primljena i obrađuje se.</p>
-          <h3>Detalji porudžbine:</h3>
-          <div style="display: flex; flex-wrap: wrap; justify-content: center;">
-            ${itemHTML}
-          </div>
-          <h3>Ukupna cena: ${totalPrice} RSD</h3>
-        </div>
-      `,
+         <div style="font-family: Arial, sans-serif; padding: 20px;">
+           <h2>🎉 Nova porudžbina! 🚀</h2>
+           <div>
+            <h3>Informacije o kupcu:</h3>
+            <p><strong>Ime:</strong> ${data.name}</p>
+            <p><strong>Telefon:</strong> ${data.phoneNumber}</p>
+            <p><strong>Grad:</strong> ${data.city}</p>
+            <p><strong>Adresa:</strong> ${data.address}</p>
+            <p><strong>Email:</strong> ${data.email}</p>
+            <div style="display: flex; flex-wrap: wrap; justify-content: center;">
+              ${itemHTML}
+            </div>
+           <h3>Ukupna cena: ${totalPrice} RSD</h3>
+         </div>
+       `,
     };
 
     await transporter.sendMail(mailOptions);
@@ -146,7 +120,6 @@ const sendMailToCustomer = async (data) => {
 };
 
 module.exports = {
-  sendMail,
   sendMailToCustomer,
   sendOrderMail,
   sendContactUsEmail,
