@@ -8,6 +8,7 @@ const https = require('https')
 const fs = require('fs')
 const app = express()
 const paypalService = require('../paypalService');
+  const { v4: uuidv4 } = require('uuid');
 const PORT = 5001
 const TRANSLATION_CHAT_ID = '6569f069ebb4aaed1fe7988f'
 
@@ -85,27 +86,43 @@ app.post('/api/contactUs', async (req, res) => {
 app.post('/api/generateImage', async (req, res) => {
   const { prompt } = req.body
   try {
+   const AZURE_TRANSLATOR_REGION = 'northeurope'
     const response = await axios.post(
-      'http://46.101.119.178:5000/api/messages',
-      {
-        chatId: TRANSLATION_CHAT_ID,
-        text: prompt,
-      },
-      {
-        headers: {
-          Authorization: `${process.env.TRANSLATOR_AUTH_TOKEN}`,
+      `https://api.cognitive.microsofttranslator.com/translate`,
+      [
+        {
+          text: prompt,
         },
+      ],
+      {
+        params: {
+          "api-version": "3.0",
+          from: "sr",
+          to: "en", // moze i "en-us" ako ti bas treba locale
+        },
+        headers: {
+          "Ocp-Apim-Subscription-Key": process.env.AZURE_TRANSLATOR_KEY,
+          // ubaci region samo ako ga stvarno imas (za global single-service mozes i bez ovoga)
+          ...(AZURE_TRANSLATOR_REGION &&
+          AZURE_TRANSLATOR_REGION !== "<YOUR-RESOURCE-REGION>"
+            ? { "Ocp-Apim-Subscription-Region": AZURE_TRANSLATOR_REGION }
+            : {}),
+          "Content-Type": "application/json",
+          "X-ClientTraceId": uuidv4().toString(),
+          "User-Agent": "ClothesDesignGenerator/1.0.0",
+        },
+        responseType: "json",
       }
-    )
-    const translatedPrompt = response?.data?.message?.textTranslated
+    );
 
+    const translatedPrompt = response.data[0].translations[0].text
     const generateResponse = await generateImages(translatedPrompt)
     res.status(200).send({
       message: 'Generating images initiated!',
       imageId: generateResponse.data.sdGenerationJob.generationId,
     })
   } catch (error) {
-    console.log("Error bato", error, error?.message)
+    console.log("Error bato", error, error?.message, error?.response?.data.error)
     res.status(500).send({
       message: 'Server error sorry',
       error: error
@@ -162,14 +179,12 @@ const generateImages = async (prompt) => {
     const response = await axios.post(
       'https://cloud.leonardo.ai/api/rest/v1/generations/',
       {
-        "modelId": "6b645e3a-d64f-4341-a6d8-7a3690fbf042",
-        "contrast": 3.5,
+        "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
         "prompt": prompt,
-        "num_images": 4,
-        "width": 1080,
-        "height": 1080,
+        "num_images": 3,
+        "width": 1024,
+        "height": 1024,
         "ultra": false,
-        "styleUUID": "111dc692-d470-4eec-b791-3475abac4c46",
         "enhancePrompt": false
       },
       {
@@ -178,6 +193,7 @@ const generateImages = async (prompt) => {
         },
       }
     )
+    console.log("Response images",response)
     return response
   } catch (error) {
     console.log(error)
