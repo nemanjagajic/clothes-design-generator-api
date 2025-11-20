@@ -12,8 +12,52 @@ const paypalService = require('../paypalService');
 const PORT = 5001
 const TRANSLATION_CHAT_ID = '6569f069ebb4aaed1fe7988f'
 
+// Configure CORS FIRST - before bodyParser (order matters!)
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true)
+    
+    // Explicitly allow the frontend origin
+    const allowedOrigins = [
+      'https://www.kreiraj.rs',
+      'https://kreiraj.rs',
+      'http://localhost:3000',
+      'http://localhost:3001'
+    ]
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      // In development, allow all origins
+      if (process.env.ENV !== 'production') {
+        callback(null, true)
+      } else {
+        callback(new Error('Not allowed by CORS'))
+      }
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-CSRF-Token'],
+  exposedHeaders: ['Content-Length'],
+  preflightContinue: false,
+  optionsSuccessStatus: 200 // Some browsers expect 200 instead of 204
+}
+
+// Apply CORS middleware BEFORE bodyParser
+app.use(cors(corsOptions))
+
+// Explicitly handle OPTIONS preflight requests for all routes
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*')
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token')
+  res.header('Access-Control-Allow-Credentials', 'true')
+  res.sendStatus(200)
+})
+
 app.use(bodyParser.json())
-app.use(cors())
 
 if (process.env.ENV === 'production') {
   const httpsOptions = {
