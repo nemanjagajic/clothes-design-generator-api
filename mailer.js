@@ -50,7 +50,7 @@ const formatOrderItem = (item) => `
       ${!item?.size?.width && !item?.size?.length && !item?.size?.sleeves ? 'N/A' : ''}
     </p>
     <p style="color: #333;"><strong>Količina:</strong> ${item.productCount || 1}</p>
-    <p style="color: #333; font-weight: bold;"><strong>Cena:</strong> ${(item.price || 0) * (item.productCount || 1)} RSD</p>
+    <p style="color: #333; font-weight: bold;"><strong>Cena:</strong> ${(item.discountedPrice || 0) * (item.productCount || 1)} RSD</p>
   </div>
 `;
 
@@ -58,7 +58,7 @@ const formatOrderItem = (item) => `
 
 const sendOrderMail = async (data) => {
   try {
-    const totalPrice = data.orderItems.reduce((acc, item) => acc + (item.price || 0) * (item.productCount || 1), 0);
+    const totalPrice = data.orderItems.reduce((acc, item) => acc + (item.discountedPrice || 0) * (item.productCount || 1), 0);
     const itemHTML = data.orderItems.map(formatOrderItem).join('');
 
     const mailOptions = {
@@ -91,7 +91,7 @@ const sendOrderMail = async (data) => {
 
 const sendMailToCustomer = async (data) => {
   try {
-    const totalPrice = data.orderItems.reduce((acc, item) => acc + (item.price || 0) * (item.productCount || 1), 0);
+    const totalPrice = data.orderItems.reduce((acc, item) => acc + (item.discountedPrice || 0) * (item.productCount || 1), 0);
     const itemHTML = data.orderItems.map(formatOrderItem).join('');
 
     const mailOptions = {
