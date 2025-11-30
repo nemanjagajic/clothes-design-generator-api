@@ -8,9 +8,56 @@ const https = require('https')
 const fs = require('fs')
 const app = express()
 const paypalService = require('../paypalService');
-  const { v4: uuidv4 } = require('uuid');
+const OpenAI = require("openai");
+const { v4: uuidv4 } = require('uuid');
+
+
 const PORT = 5001
 const TRANSLATION_CHAT_ID = '6569f069ebb4aaed1fe7988f'
+// Initialize OpenAI client
+const openai = new OpenAI({
+
+  apiKey: process.env.CHAT_GPT_API_KEY,
+});
+
+// Enhance prompt function
+const enhancePrompt = async (userPrompt) => {
+const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: `You rewrite short, informal Serbian or English user prompts into clean, professional, high-quality image generation prompts in English.
+
+        Your output must always be a single, polished prompt optimized for commercial print products (mugs, shirts, posters, canvases, gifts).
+
+        Guidelines:
+        - Fully understand the user’s intention, even if vague or written in Serbian slang.
+        - Translate and rewrite the idea into natural, descriptive English.
+        - Add only meaningful details: pose, setting, style, lighting, camera angle, clothing, mood, expression.
+        - Keep the subject visually clean and centered. Avoid chaotic scenes.
+        - Always ensure correct anatomy and proportions. Avoid distorted faces, mutated limbs, extra fingers, or surreal body shapes.
+        - Prefer balanced, aesthetic compositions suitable for printed gifts.
+        - Use a concise but vivid description (not too long, not too short).
+        - Do NOT explain anything. Do NOT add commentary. Output ONLY the final improved image prompt.
+
+        Return ONLY the improved English prompt ready for a diffusion image model.`,
+      },
+      {
+        role: "user",
+        content: userPrompt,
+      },
+    ],
+    temperature: 0.5,
+    max_tokens: 160,
+    top_p: 0.9,
+    presence_penalty: 0,
+    frequency_penalty: 0,
+  });
+
+
+  return response.choices[0].message.content.trim();
+};
 
 // Configure CORS FIRST - before bodyParser (order matters!)
 const corsOptions = {
@@ -127,50 +174,26 @@ app.post('/api/contactUs', async (req, res) => {
   }
 });
 
-app.post('/api/generateImage', async (req, res) => {
-  const { prompt } = req.body
-  try {
-   const AZURE_TRANSLATOR_REGION = 'northeurope'
-    const response = await axios.post(
-      `https://api.cognitive.microsofttranslator.com/translate`,
-      [
-        {
-          text: prompt,
-        },
-      ],
-      {
-        params: {
-          "api-version": "3.0",
-          from: "sr",
-          to: "en", // moze i "en-us" ako ti bas treba locale
-        },
-        headers: {
-          "Ocp-Apim-Subscription-Key": process.env.AZURE_TRANSLATOR_KEY,
-          // ubaci region samo ako ga stvarno imas (za global single-service mozes i bez ovoga)
-          ...(AZURE_TRANSLATOR_REGION &&
-          AZURE_TRANSLATOR_REGION !== "<YOUR-RESOURCE-REGION>"
-            ? { "Ocp-Apim-Subscription-Region": AZURE_TRANSLATOR_REGION }
-            : {}),
-          "Content-Type": "application/json",
-          "X-ClientTraceId": uuidv4().toString(),
-          "User-Agent": "ClothesDesignGenerator/1.0.0",
-        },
-        responseType: "json",
-      }
-    );
+app.post("/api/generateImage", async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) {
+    return res.status(400).json({ message: "Prompt is required" });
+  }
 
-    const translatedPrompt = response.data[0].translations[0].text
-    const generateResponse = await generateImages(translatedPrompt)
+  try {
+    // Enhance the prompt
+    const enhancedPrompt = await enhancePrompt(prompt);
+
+    const generateResponse = await generateImages(enhancedPrompt)
     res.status(200).send({
       message: 'Generating images initiated!',
-      imageId: generateResponse.data.sdGenerationJob.generationId,
-    })
-  } catch (error) {
-    console.log("Error bato", error, error?.message, error?.response?.data.error)
-    res.status(500).send({
-      message: 'Server error sorry',
-      error: error
-    })
+      imageId: generateResponse.data.sdGenerationJob.generationId
+    })} catch (error) {
+    console.log("API Error:", error.message);
+    res.status(500).json({
+      message: "Server error,  " + error.message,
+      error: error.message,
+    });
   }
 })
 
