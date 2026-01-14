@@ -6,10 +6,15 @@ const mailer = require('../mailer')
 require('dotenv').config()
 const https = require('https')
 const fs = require('fs')
+const path = require('path')
 const app = express()
 const paypalService = require('../paypalService');
 const OpenAI = require("openai");
 const { v4: uuidv4 } = require('uuid');
+const { GoogleGenAI } = require("@google/genai");
+
+const googleAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
+
 
 
 const PORT = 5001
@@ -20,9 +25,107 @@ const openai = new OpenAI({
   apiKey: process.env.CHAT_GPT_API_KEY,
 });
 
+const getTokenUsageLogPath = () => {
+  const configuredPath = process.env.TOKEN_USAGE_LOG_PATH
+  if (configuredPath && configuredPath.trim()) {
+    return configuredPath
+  }
+
+  // Vercel/serverless filesystems are often read-only except /tmp
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return path.join('/tmp', 'token_usage_log.csv')
+  }
+
+  return path.join(process.cwd(), 'token_usage_log.csv')
+}
+
+const csvEscape = (value) => {
+  if (value === null || value === undefined) return ''
+  const str = String(value)
+  if (/["\n\r,]/.test(str)) {
+    return '"' + str.replace(/"/g, '""') + '"'
+  }
+  return str
+}
+
+const normalizeUsage = ({ enhanceUsage, modelUsage }) => {
+  const enhancePromptTokens = Number(enhanceUsage?.prompt_tokens ?? 0)
+  const enhanceCompletionTokens = Number(enhanceUsage?.completion_tokens ?? 0)
+  const enhanceTotalTokens = Number(enhanceUsage?.total_tokens ?? (enhancePromptTokens + enhanceCompletionTokens))
+
+  // Gemini usageMetadata shape
+  const modelPromptTokens = Number(modelUsage?.promptTokenCount ?? 0)
+  const modelCompletionTokens = Number(modelUsage?.candidatesTokenCount ?? 0)
+  const modelTotalTokens = Number(modelUsage?.totalTokenCount ?? (modelPromptTokens + modelCompletionTokens))
+
+  const promptTokens = enhancePromptTokens + modelPromptTokens
+  const completionTokens = enhanceCompletionTokens + modelCompletionTokens
+  const totalTokens = enhanceTotalTokens + modelTotalTokens
+
+  return { promptTokens, completionTokens, totalTokens }
+}
+
+const estimateCostUsd = ({ model, totalTokens, extraCostUsd = 0 }) => {
+  const modelName = String(model || '')
+  const rateDefault = Number(process.env.TOKEN_COST_PER_1K_USD || 0)
+  const rateOpenAI = Number(process.env.OPENAI_TOKEN_COST_PER_1K_USD || 0)
+  const rateGemini = Number(process.env.GEMINI_TOKEN_COST_PER_1K_USD || 0)
+
+  let rate = rateDefault
+  if (modelName.toLowerCase().includes('gemini') && rateGemini) rate = rateGemini
+  if (modelName.toLowerCase().startsWith('gpt') && rateOpenAI) rate = rateOpenAI
+
+  const tokenCost = rate ? (Number(totalTokens || 0) / 1000) * rate : 0
+  const totalCost = tokenCost + Number(extraCostUsd || 0)
+
+  // If no rates set and no extra cost, keep it empty
+  if (!rate && !extraCostUsd) return ''
+  return totalCost.toFixed(6)
+}
+
+const appendTokenUsageCsv = async ({ originalPrompt, enhancedPrompt, model, enhanceUsage, modelUsage, extraCostUsd }) => {
+  try {
+    const logPath = getTokenUsageLogPath()
+    const createdDate = new Date().toISOString()
+    const { promptTokens, completionTokens, totalTokens } = normalizeUsage({ enhanceUsage, modelUsage })
+    const estimatedCostUsd = estimateCostUsd({ model, totalTokens, extraCostUsd })
+
+    const header = [
+      'originalPrompt',
+      'enhancedPrompt',
+      'model',
+      'estimatedCostUsd',
+      'createdDate',
+      'promptTokens',
+      'completionTokens',
+      'totalTokens',
+    ].join(',') + '\n'
+
+    const row = [
+      csvEscape(originalPrompt),
+      csvEscape(enhancedPrompt),
+      csvEscape(model),
+      csvEscape(estimatedCostUsd),
+      csvEscape(createdDate),
+      csvEscape(promptTokens),
+      csvEscape(completionTokens),
+      csvEscape(totalTokens),
+    ].join(',') + '\n'
+
+    if (!fs.existsSync(logPath)) {
+      await fs.promises.writeFile(logPath, header + row, { encoding: 'utf8' })
+      return
+    }
+
+    await fs.promises.appendFile(logPath, row, { encoding: 'utf8' })
+  } catch (error) {
+    console.error('Error writing token usage CSV:', error)
+  }
+}
+
 // Enhance prompt function
 const enhancePrompt = async (userPrompt) => {
-const response = await openai.chat.completions.create({
+  const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       {
@@ -64,8 +167,11 @@ const response = await openai.chat.completions.create({
     frequency_penalty: 0,
   });
 
-
-  return response.choices[0].message.content.trim();
+  return {
+    enhancedPrompt: response.choices[0].message.content.trim(),
+    usage: response.usage,
+    model: response.model,
+  };
 };
 
 // Configure CORS FIRST - before bodyParser (order matters!)
@@ -73,7 +179,7 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true)
-    
+
     // Explicitly allow the frontend origin
     const allowedOrigins = [
       'https://www.kreiraj.rs',
@@ -81,7 +187,7 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:3001'
     ]
-    
+
     if (allowedOrigins.includes(origin)) {
       callback(null, true)
     } else {
@@ -183,6 +289,114 @@ app.post('/api/contactUs', async (req, res) => {
   }
 });
 
+app.post("/api/generateImageGemini", async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) {
+    return res.status(400).json({ message: "Prompt is required" });
+  }
+
+  try {
+    const { enhancedPrompt, usage: enhanceUsage } = await enhancePrompt(prompt);
+
+    const model = "gemini-2.0-flash-exp";
+
+    const response = await googleAI.models.generateContent({
+      model,
+      contents: enhancedPrompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+        imageConfig: {
+          aspectRatio: "1:1",
+          imageSize: "1024x1024"
+        }
+      }
+    });
+
+    const images = [];
+    if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) {
+          images.push(part.inlineData.data);
+        }
+      }
+    }
+
+    await appendTokenUsageCsv({
+      originalPrompt: prompt,
+      enhancedPrompt,
+      model,
+      enhanceUsage,
+      modelUsage: response.usageMetadata,
+    })
+
+    res.status(200).json({
+      message: "Image generated successfully",
+      images: images,
+      usage: response.usageMetadata
+    });
+
+  } catch (error) {
+    console.error("Gemini Error:", error);
+    res.status(500).json({
+      message: "Server error: " + error.message,
+      error: error.message,
+    });
+  }
+});
+
+app.post("/api/generateImageChatGPT", async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) {
+    return res.status(400).json({ message: "Prompt is required" });
+  }
+
+  if (!process.env.CHAT_GPT_API_KEY) {
+    return res.status(500).json({ message: "CHAT_GPT_API_KEY is not configured" });
+  }
+
+  try {
+    const { enhancedPrompt, usage: enhanceUsage } = await enhancePrompt(prompt);
+
+    const model = "gpt-image-1.5";
+    const quality = "low";
+
+    const imageResponse = await openai.images.generate({
+      model,
+      prompt: enhancedPrompt,
+      size: "1024x1024",
+      quality,
+    });
+    const images = (imageResponse.data || [])
+      .map((item) => item.b64_json)
+      .filter(Boolean);
+
+    const imageExtraCostUsd = Number(process.env.OPENAI_IMAGE_LOW_COST_USD || 0)
+    await appendTokenUsageCsv({
+      originalPrompt: prompt,
+      enhancedPrompt,
+      model: `${model}:${quality}`,
+      enhanceUsage,
+      modelUsage: null,
+      extraCostUsd: imageExtraCostUsd,
+    })
+
+    return res.status(200).json({
+      message: "Image generated successfully",
+      images,
+      usage: enhanceUsage,
+      imageModel: model,
+      quality,
+      imageId: imageResponse.created
+    });
+  } catch (error) {
+    console.error("ChatGPT Image Error:", error);
+    return res.status(500).json({
+      message: "Server error: " + error.message,
+      error: error.message,
+    });
+  }
+});
+
 app.post("/api/generateImage", async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) {
@@ -191,13 +405,14 @@ app.post("/api/generateImage", async (req, res) => {
 
   try {
     // Enhance the prompt
-    const enhancedPrompt = await enhancePrompt(prompt);
+    const { enhancedPrompt } = await enhancePrompt(prompt);
 
     const generateResponse = await generateImages(enhancedPrompt)
     res.status(200).send({
       message: 'Generating images initiated!',
       imageId: generateResponse.data.sdGenerationJob.generationId
-    })} catch (error) {
+    })
+  } catch (error) {
     console.log("API Error:", error.message);
     res.status(500).json({
       message: "Server error,  " + error.message,
@@ -220,8 +435,8 @@ app.get('/api/getImageGenerationProgress/:task_id', async (req, res) => {
 
     if (!response?.data?.generations_by_pk?.generated_images?.length) {
       return res
-      .status(200)
-      .send({ progress: 0, error: false, status: "pending" })
+        .status(200)
+        .send({ progress: 0, error: false, status: "pending" })
     }
 
     if (response?.data?.generations_by_pk?.generated_images) {
@@ -269,7 +484,6 @@ const generateImages = async (prompt) => {
         },
       }
     )
-    console.log("Response images",response)
     return response
   } catch (error) {
     console.log(error)
