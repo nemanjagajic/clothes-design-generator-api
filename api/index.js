@@ -9,6 +9,7 @@ const fs = require('fs')
 const path = require('path')
 const app = express()
 const paypalService = require('../paypalService');
+const cloudflareImagesService = require('../cloudflareImagesService');
 const OpenAI = require("openai");
 const { v4: uuidv4 } = require('uuid');
 const { GoogleGenAI } = require("@google/genai");
@@ -520,6 +521,125 @@ app.post("/api/paypal/orders/:orderID/capture", async (req, res) => {
   } catch (error) {
     console.error("Failed to capture order:", error);
     res.status(500).json({ error: "Failed to capture order." });
+  }
+});
+
+// Cloudflare Images API endpoints
+app.post("/api/cloudflare/images/upload-url", async (req, res) => {
+  try {
+    const { imageUrl, metadata, requireSignedURLs } = req.body;
+    
+    if (!imageUrl) {
+      return res.status(400).json({ error: "imageUrl is required" });
+    }
+
+    const result = await cloudflareImagesService.uploadImageFromUrl(
+      imageUrl,
+      metadata || {},
+      requireSignedURLs || false
+    );
+
+    if (result.success) {
+      res.status(result.httpStatusCode).json(result.data);
+    } else {
+      res.status(result.httpStatusCode).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error("Failed to upload image from URL:", error);
+    res.status(500).json({ error: "Failed to upload image from URL." });
+  }
+});
+
+app.post("/api/cloudflare/images/upload-base64", async (req, res) => {
+  try {
+    const { base64String, filename, metadata, requireSignedURLs } = req.body;
+    
+    if (!base64String) {
+      return res.status(400).json({ error: "base64String is required" });
+    }
+    if (!filename) {
+      return res.status(400).json({ error: "filename is required" });
+    }
+
+    const result = await cloudflareImagesService.uploadImageFromBase64(
+      base64String,
+      filename,
+      metadata || {},
+      requireSignedURLs || false
+    );
+
+    if (result.success) {
+      res.status(result.httpStatusCode).json(result.data);
+    } else {
+      res.status(result.httpStatusCode).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error("Failed to upload image from base64:", error);
+    res.status(500).json({ error: "Failed to upload image from base64." });
+  }
+});
+
+app.get("/api/cloudflare/images/:imageId", async (req, res) => {
+  try {
+    const { imageId } = req.params;
+    
+    if (!imageId) {
+      return res.status(400).json({ error: "imageId is required" });
+    }
+
+    const result = await cloudflareImagesService.getImage(imageId);
+
+    if (result.success) {
+      res.status(result.httpStatusCode).json(result.data);
+    } else {
+      res.status(result.httpStatusCode).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error("Failed to get image bato:", error);
+    res.status(500).json({ error: "Failed to get image." });
+  }
+});
+
+app.get("/api/cloudflare/images", async (req, res) => {
+  try {
+    const { per_page, page, sort_order } = req.query;
+    
+    const options = {};
+    if (per_page) options.per_page = parseInt(per_page);
+    if (page) options.page = parseInt(page);
+    if (sort_order) options.sort_order = sort_order;
+
+    const result = await cloudflareImagesService.listImages(options);
+
+    if (result.success) {
+      res.status(result.httpStatusCode).json(result.data);
+    } else {
+      res.status(result.httpStatusCode).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error("Failed to list images:", error);
+    res.status(500).json({ error: "Failed to list images." });
+  }
+});
+
+app.delete("/api/cloudflare/images/:imageId", async (req, res) => {
+  try {
+    const { imageId } = req.params;
+    
+    if (!imageId) {
+      return res.status(400).json({ error: "imageId is required" });
+    }
+
+    const result = await cloudflareImagesService.deleteImage(imageId);
+
+    if (result.success) {
+      res.status(result.httpStatusCode).json(result.data);
+    } else {
+      res.status(result.httpStatusCode).json({ error: result.error });
+    }
+  } catch (error) {
+    console.error("Failed to delete image:", error);
+    res.status(500).json({ error: "Failed to delete image." });
   }
 });
 
