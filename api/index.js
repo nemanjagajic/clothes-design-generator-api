@@ -290,62 +290,62 @@ app.post('/api/contactUs', async (req, res) => {
   }
 });
 
-app.post("/api/generateImageGemini", async (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt) {
-    return res.status(400).json({ message: "Prompt is required" });
-  }
+// app.post("/api/generateImageGemini", async (req, res) => {
+//   const { prompt } = req.body;
+//   if (!prompt) {
+//     return res.status(400).json({ message: "Prompt is required" });
+//   }
 
-  try {
-    const { enhancedPrompt, usage: enhanceUsage } = await enhancePrompt(prompt);
+//   try {
+//     const { enhancedPrompt, usage: enhanceUsage } = await enhancePrompt(prompt);
 
-    const model = "gemini-2.0-flash-exp";
+//     const model = "gemini-2.0-flash-exp";
 
-    const response = await googleAI.models.generateContent({
-      model,
-      contents: enhancedPrompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        imageConfig: {
-          aspectRatio: "1:1",
-          imageSize: "1024x1024"
-        }
-      }
-    });
+//     const response = await googleAI.models.generateContent({
+//       model,
+//       contents: enhancedPrompt,
+//       config: {
+//         tools: [{ googleSearch: {} }],
+//         imageConfig: {
+//           aspectRatio: "1:1",
+//           imageSize: "1024x1024"
+//         }
+//       }
+//     });
 
-    const images = [];
-    if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          images.push(part.inlineData.data);
-        }
-      }
-    }
+//     const images = [];
+//     if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
+//       for (const part of response.candidates[0].content.parts) {
+//         if (part.inlineData) {
+//           images.push(part.inlineData.data);
+//         }
+//       }
+//     }
 
-    await appendTokenUsageCsv({
-      originalPrompt: prompt,
-      enhancedPrompt,
-      model,
-      enhanceUsage,
-      modelUsage: response.usageMetadata,
-    })
+//     await appendTokenUsageCsv({
+//       originalPrompt: prompt,
+//       enhancedPrompt,
+//       model,
+//       enhanceUsage,
+//       modelUsage: response.usageMetadata,
+//     })
 
-    res.status(200).json({
-      message: "Image generated successfully",
-      images: images,
-      usage: response.usageMetadata
-    });
+//     res.status(200).json({
+//       message: "Image generated successfully",
+//       images: images,
+//       usage: response.usageMetadata
+//     });
 
-  } catch (error) {
-    console.error("Gemini Error:", error);
-    res.status(500).json({
-      message: "Server error: " + error.message,
-      error: error.message,
-    });
-  }
-});
+//   } catch (error) {
+//     console.error("Gemini Error:", error);
+//     res.status(500).json({
+//       message: "Server error: " + error.message,
+//       error: error.message,
+//     });
+//   }
+// });
 
-app.post("/api/generateImageChatGPT", async (req, res) => {
+app.post("/api/generate", async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) {
     return res.status(400).json({ message: "Prompt is required" });
@@ -359,17 +359,50 @@ app.post("/api/generateImageChatGPT", async (req, res) => {
     const { enhancedPrompt, usage: enhanceUsage } = await enhancePrompt(prompt);
 
     const model = "gpt-image-1.5";
-    const quality = "low";
+    const quality = "medium";
 
     const imageResponse = await openai.images.generate({
       model,
       prompt: enhancedPrompt,
       size: "1024x1024",
       quality,
+      n: 2
     });
     const images = (imageResponse.data || [])
       .map((item) => item.b64_json)
       .filter(Boolean);
+
+    // Upload images to S3
+    const uploadedImages = [];
+    for (let i = 0; i < images.length; i++) {
+      const base64String = images[i];
+      // Remove data URI prefix if present
+      const base64Data = base64String.includes(',') 
+        ? base64String.split(',')[1] 
+        : base64String;
+      
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+      const filename = `kreiraj-${imageResponse.created}-${i + 1}.png`;
+      
+      const uploadResult = await cloudflareImagesService.uploadImageToS3(
+        imageBuffer,
+        filename,
+        'image/png'
+      );
+      
+      if (uploadResult.success) {
+        uploadedImages.push({
+          imageId: `https://img.kreiraj.rs/${uploadResult.data.key}`,
+        });
+      } else {
+        console.error(`Failed to upload image ${i + 1} to S3:`, uploadResult.error);
+        // Still include the base64 even if S3 upload fails
+        uploadedImages.push({
+          imageId: null,
+          uploadError: uploadResult.error,
+        });
+      }
+    }
 
     const imageExtraCostUsd = Number(process.env.OPENAI_IMAGE_LOW_COST_USD || 0)
     await appendTokenUsageCsv({
@@ -383,11 +416,8 @@ app.post("/api/generateImageChatGPT", async (req, res) => {
 
     return res.status(200).json({
       message: "Image generated successfully",
-      images,
+      images: uploadedImages,
       usage: enhanceUsage,
-      imageModel: model,
-      quality,
-      imageId: imageResponse.created
     });
   } catch (error) {
     console.error("ChatGPT Image Error:", error);
@@ -398,249 +428,130 @@ app.post("/api/generateImageChatGPT", async (req, res) => {
   }
 });
 
-app.post("/api/generateImage", async (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt) {
-    return res.status(400).json({ message: "Prompt is required" });
-  }
+// app.post("/api/generateImage", async (req, res) => {
+//   const { prompt } = req.body;
+//   if (!prompt) {
+//     return res.status(400).json({ message: "Prompt is required" });
+//   }
 
-  try {
-    // Enhance the prompt
-    const { enhancedPrompt } = await enhancePrompt(prompt);
+//   try {
+//     // Enhance the prompt
+//     const { enhancedPrompt } = await enhancePrompt(prompt);
 
-    const generateResponse = await generateImages(enhancedPrompt)
-    res.status(200).send({
-      message: 'Generating images initiated!',
-      imageId: generateResponse.data.sdGenerationJob.generationId
-    })
-  } catch (error) {
-    console.log("API Error:", error.message);
-    res.status(500).json({
-      message: "Server error,  " + error.message,
-      error: error.message,
-    });
-  }
-})
+//     const generateResponse = await generateImages(enhancedPrompt)
+//     res.status(200).send({
+//       message: 'Generating images initiated!',
+//       imageId: generateResponse.data.sdGenerationJob.generationId
+//     })
+//   } catch (error) {
+//     res.status(500).json({
+//       message: "Server error,  " + error.message,
+//       error: error.message,
+//     });
+//   }
+// })
 
-app.get('/api/getImageGenerationProgress/:task_id', async (req, res) => {
-  const { task_id } = req.params
-  try {
-    const response = await axios.get(
-      `https://cloud.leonardo.ai/api/rest/v1/generations/${task_id}`,
-      {
-        headers: {
-          'authorization': `Bearer ${process.env.LEONARDO_API_TOKEN}`,
-        },
-      },
-    )
+// app.get('/api/getImageGenerationProgress/:task_id', async (req, res) => {
+//   const { task_id } = req.params
+//   try {
+//     const response = await axios.get(
+//       `https://cloud.leonardo.ai/api/rest/v1/generations/${task_id}`,
+//       {
+//         headers: {
+//           'authorization': `Bearer ${process.env.LEONARDO_API_TOKEN}`,
+//         },
+//       },
+//     )
 
-    if (!response?.data?.generations_by_pk?.generated_images?.length) {
-      return res
-        .status(200)
-        .send({ progress: 0, error: false, status: "pending" })
-    }
+//     if (!response?.data?.generations_by_pk?.generated_images?.length) {
+//       return res
+//         .status(200)
+//         .send({ progress: 0, error: false, status: "pending" })
+//     }
 
-    if (response?.data?.generations_by_pk?.generated_images) {
-      return res.status(200).send({
-        image_urls: response?.data?.generations_by_pk?.generated_images
-      })
-    }
-  } catch (error) {
-    return res
-      .status(500)
-      .send({ progress: 0, response: {}, message: error, error: true })
-  }
-})
+//     if (response?.data?.generations_by_pk?.generated_images) {
+//       return res.status(200).send({
+//         image_urls: response?.data?.generations_by_pk?.generated_images
+//       })
+//     }
+//   } catch (error) {
+//     return res
+//       .status(500)
+//       .send({ progress: 0, response: {}, message: error, error: true })
+//   }
+// })
 
-app.post('/api/verify-captcha', async (req, res) => {
-  const token = req.body.captchaValue
-  const secretKey = process.env.CAPTCHA_SECRET_KEY
-  const response = await axios.post(
-    `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${token}`
-  )
+// app.post('/api/verify-captcha', async (req, res) => {
+//   const token = req.body.captchaValue
+//   const secretKey = process.env.CAPTCHA_SECRET_KEY
+//   const response = await axios.post(
+//     `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${token}`
+//   )
 
-  if (response.data.success) {
-    res.send({ success: true, message: 'CAPTCHA verified successfully!' })
-  } else {
-    res.send({ success: false, message: 'CAPTCHA verification failed.' })
-  }
-})
+//   if (response.data.success) {
+//     res.send({ success: true, message: 'CAPTCHA verified successfully!' })
+//   } else {
+//     res.send({ success: false, message: 'CAPTCHA verification failed.' })
+//   }
+// })
 
-const generateImages = async (prompt) => {
-  try {
-    const response = await axios.post(
-      'https://cloud.leonardo.ai/api/rest/v1/generations/',
-      {
-        "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
-        "prompt": prompt,
-        "num_images": 3,
-        "width": 1024,
-        "height": 1024,
-        "ultra": false,
-        "enhancePrompt": false
-      },
-      {
-        headers: {
-          'authorization': `Bearer ${process.env.LEONARDO_API_TOKEN}`,
-        },
-      }
-    )
-    return response
-  } catch (error) {
-    console.log(error)
-    return false
-  }
-}
+// const generateImages = async (prompt) => {
+//   try {
+//     const response = await axios.post(
+//       'https://cloud.leonardo.ai/api/rest/v1/generations/',
+//       {
+//         "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+//         "prompt": prompt,
+//         "num_images": 3,
+//         "width": 1024,
+//         "height": 1024,
+//         "ultra": false,
+//         "enhancePrompt": false
+//       },
+//       {
+//         headers: {
+//           'authorization': `Bearer ${process.env.LEONARDO_API_TOKEN}`,
+//         },
+//       }
+//     )
+//     return response
+//   } catch (error) {
+//     console.log(error)
+//     return false
+//   }
+// }
 
-app.post("/api/token", async (req, res) => {
-  try {
-    const { jsonResponse, httpStatusCode } = await paypalService.generateClientToken();
-    res.status(httpStatusCode).json(jsonResponse);
-  } catch (error) {
-    console.error("Failed to generate client token:", error);
-    res.status(500).send({ error: "Failed to generate client token." });
-  }
-});
+// app.post("/api/token", async (req, res) => {
+//   try {
+//     const { jsonResponse, httpStatusCode } = await paypalService.generateClientToken();
+//     res.status(httpStatusCode).json(jsonResponse);
+//   } catch (error) {
+//     console.error("Failed to generate client token:", error);
+//     res.status(500).send({ error: "Failed to generate client token." });
+//   }
+// });
 
-app.post("/api/paypal/orders", async (req, res) => {
-  try {
-    const { price } = req.body;
-    const { jsonResponse, httpStatusCode } = await paypalService.createOrder(price);
-    res.status(httpStatusCode).json(jsonResponse);
-  } catch (error) {
-    console.error("Failed to create order:", error);
-    res.status(500).json({ error: "Failed to create order." });
-  }
-});
+// app.post("/api/paypal/orders", async (req, res) => {
+//   try {
+//     const { price } = req.body;
+//     const { jsonResponse, httpStatusCode } = await paypalService.createOrder(price);
+//     res.status(httpStatusCode).json(jsonResponse);
+//   } catch (error) {
+//     console.error("Failed to create order:", error);
+//     res.status(500).json({ error: "Failed to create order." });
+//   }
+// });
 
-app.post("/api/paypal/orders/:orderID/capture", async (req, res) => {
-  try {
-    const { orderID } = req.params;
-    const { jsonResponse, httpStatusCode } = await paypalService.captureOrder(orderID);
-    res.status(httpStatusCode).json(jsonResponse);
-  } catch (error) {
-    console.error("Failed to capture order:", error);
-    res.status(500).json({ error: "Failed to capture order." });
-  }
-});
+// app.post("/api/paypal/orders/:orderID/capture", async (req, res) => {
+//   try {
+//     const { orderID } = req.params;
+//     const { jsonResponse, httpStatusCode } = await paypalService.captureOrder(orderID);
+//     res.status(httpStatusCode).json(jsonResponse);
+//   } catch (error) {
+//     console.error("Failed to capture order:", error);
+//     res.status(500).json({ error: "Failed to capture order." });
+//   }
+// });
 
-// Cloudflare Images API endpoints
-app.post("/api/cloudflare/images/upload-url", async (req, res) => {
-  try {
-    const { imageUrl, metadata, requireSignedURLs } = req.body;
-    
-    if (!imageUrl) {
-      return res.status(400).json({ error: "imageUrl is required" });
-    }
-
-    const result = await cloudflareImagesService.uploadImageFromUrl(
-      imageUrl,
-      metadata || {},
-      requireSignedURLs || false
-    );
-
-    if (result.success) {
-      res.status(result.httpStatusCode).json(result.data);
-    } else {
-      res.status(result.httpStatusCode).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error("Failed to upload image from URL:", error);
-    res.status(500).json({ error: "Failed to upload image from URL." });
-  }
-});
-
-app.post("/api/cloudflare/images/upload-base64", async (req, res) => {
-  try {
-    const { base64String, filename, metadata, requireSignedURLs } = req.body;
-    
-    if (!base64String) {
-      return res.status(400).json({ error: "base64String is required" });
-    }
-    if (!filename) {
-      return res.status(400).json({ error: "filename is required" });
-    }
-
-    const result = await cloudflareImagesService.uploadImageFromBase64(
-      base64String,
-      filename,
-      metadata || {},
-      requireSignedURLs || false
-    );
-
-    if (result.success) {
-      res.status(result.httpStatusCode).json(result.data);
-    } else {
-      res.status(result.httpStatusCode).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error("Failed to upload image from base64:", error);
-    res.status(500).json({ error: "Failed to upload image from base64." });
-  }
-});
-
-app.get("/api/cloudflare/images/:imageId", async (req, res) => {
-  try {
-    const { imageId } = req.params;
-    
-    if (!imageId) {
-      return res.status(400).json({ error: "imageId is required" });
-    }
-
-    const result = await cloudflareImagesService.getImage(imageId);
-
-    if (result.success) {
-      res.status(result.httpStatusCode).json(result.data);
-    } else {
-      res.status(result.httpStatusCode).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error("Failed to get image bato:", error);
-    res.status(500).json({ error: "Failed to get image." });
-  }
-});
-
-app.get("/api/cloudflare/images", async (req, res) => {
-  try {
-    const { per_page, page, sort_order } = req.query;
-    
-    const options = {};
-    if (per_page) options.per_page = parseInt(per_page);
-    if (page) options.page = parseInt(page);
-    if (sort_order) options.sort_order = sort_order;
-
-    const result = await cloudflareImagesService.listImages(options);
-
-    if (result.success) {
-      res.status(result.httpStatusCode).json(result.data);
-    } else {
-      res.status(result.httpStatusCode).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error("Failed to list images:", error);
-    res.status(500).json({ error: "Failed to list images." });
-  }
-});
-
-app.delete("/api/cloudflare/images/:imageId", async (req, res) => {
-  try {
-    const { imageId } = req.params;
-    
-    if (!imageId) {
-      return res.status(400).json({ error: "imageId is required" });
-    }
-
-    const result = await cloudflareImagesService.deleteImage(imageId);
-
-    if (result.success) {
-      res.status(result.httpStatusCode).json(result.data);
-    } else {
-      res.status(result.httpStatusCode).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error("Failed to delete image:", error);
-    res.status(500).json({ error: "Failed to delete image." });
-  }
-});
 
 module.exports = app

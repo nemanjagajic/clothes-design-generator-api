@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.969.0",
     "@google/genai": "^1.35.0",
     "@paypal/checkout-server-sdk": "^1.0.3",
     "axios": "^1.5.1",
