@@ -124,6 +124,35 @@ const appendTokenUsageCsv = async ({ originalPrompt, enhancedPrompt, model, enha
   }
 }
 
+// Validate prompt function
+const validatePrompt = (rawPrompt) => {
+  const prompt = (rawPrompt ?? "").trim();
+  if (!prompt) return { allowed: false };
+
+  const containsAny = (p, patterns) => patterns.some((re) => re.test(p));
+
+  // HARD_BLOCK terms - most extreme and explicit content
+  const HARD_BLOCK = [
+    /\b(child\s*porn|cp)\b/i,
+    /\b(underage|minor|barely\s*legal)\b/i,
+    /\b(rape|raping|raped)\b/i,
+    /\b(beastiality|bestiality|zoophilia)\b/i,
+    /\b(necrophilia|necrophilia)\b/i,
+    /\b(torture|torturing|tortured)\b/i,
+    /\b(mutilation|mutilated|mutilating)\b/i,
+    /\b(cannibalism|cannibal)\b/i,
+    /\b(extreme\s*violence|gore|gory)\b/i,
+  ];
+
+  // HARD_BLOCK => deny
+  if (containsAny(prompt, HARD_BLOCK)) {
+    return { allowed: false };
+  }
+
+  // everything else => allow
+  return { allowed: true };
+};
+
 // Enhance prompt function
 const enhancePrompt = async (userPrompt) => {
   const response = await openai.chat.completions.create({
@@ -173,6 +202,72 @@ const enhancePrompt = async (userPrompt) => {
     usage: response.usage,
     model: response.model,
   };
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const createLeonardoGeneration = async (prompt) => {
+  const response = await axios.post(
+    'https://cloud.leonardo.ai/api/rest/v1/generations/',
+    {
+      modelId: "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+      prompt,
+      num_images: 2,
+      width: 1024,
+      height: 1024,
+      ultra: false,
+      enhancePrompt: false,
+    },
+    {
+      headers: {
+        authorization: `Bearer ${process.env.LEONARDO_API_TOKEN}`,
+      },
+    }
+  );
+
+  return response?.data?.sdGenerationJob?.generationId || null;
+};
+
+const fetchLeonardoGeneratedImages = async (generationId) => {
+  const response = await axios.get(
+    `https://cloud.leonardo.ai/api/rest/v1/generations/${generationId}`,
+    {
+      headers: {
+        authorization: `Bearer ${process.env.LEONARDO_API_TOKEN}`,
+      },
+    }
+  );
+
+  return response?.data?.generations_by_pk?.generated_images || [];
+};
+
+const normalizeLeonardoImages = (generatedImages = []) =>
+  generatedImages.map((image) => {
+    const imageUrl = image?.url || image?.image_url || image?.imageUrl;
+    return imageUrl ? { imageId: imageUrl } : { imageId: null, raw: image };
+  });
+
+const generateLeonardoImagesWithPolling = async (prompt) => {
+  const generationId = await createLeonardoGeneration(prompt);
+  if (!generationId) {
+    throw new Error("LEONARDO_GENERATION_ID_MISSING");
+  }
+
+  const maxAttempts = Number(process.env.LEONARDO_POLL_ATTEMPTS || 12);
+  const delayMs = Number(process.env.LEONARDO_POLL_DELAY_MS || 5000);
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const images = await fetchLeonardoGeneratedImages(generationId);
+    if (images.length) {
+      return { images, generationId };
+    }
+
+    if (attempt < maxAttempts - 1) {
+      await sleep(delayMs);
+    }
+  }
+
+  return { images: [], generationId };
 };
 
 // Configure CORS FIRST - before bodyParser (order matters!)
@@ -355,72 +450,122 @@ app.post("/api/generate", async (req, res) => {
     return res.status(500).json({ message: "CHAT_GPT_API_KEY is not configured" });
   }
 
+  // Validate prompt before processing
+  const validation = validatePrompt(prompt);
+  if (!validation.allowed) {
+    return res.status(403).json({ 
+      message: "Prompt contains prohibited content and cannot be processed",
+      error: "PROMPT_NOT_ALLOWED"
+    });
+  }
+
   try {
     const { enhancedPrompt, usage: enhanceUsage } = await enhancePrompt(prompt);
 
     const model = "gpt-image-1.5";
     const quality = "medium";
 
-    const imageResponse = await openai.images.generate({
-      model,
-      prompt: enhancedPrompt,
-      size: "1024x1024",
-      quality,
-      n: 2
-    });
-    const images = (imageResponse.data || [])
-      .map((item) => item.b64_json)
-      .filter(Boolean);
+    try {
+      const imageResponse = await openai.images.generate({
+        model,
+        prompt: enhancedPrompt,
+        size: "1024x1024",
+        quality,
+        n: 2
+      });
+      const images = (imageResponse.data || [])
+        .map((item) => item.b64_json)
+        .filter(Boolean);
 
-    // Upload images to S3
-    const uploadedImages = [];
-    for (let i = 0; i < images.length; i++) {
-      const base64String = images[i];
-      // Remove data URI prefix if present
-      const base64Data = base64String.includes(',') 
-        ? base64String.split(',')[1] 
-        : base64String;
-      
-      const imageBuffer = Buffer.from(base64Data, 'base64');
-      const filename = `kreiraj-${imageResponse.created}-${i + 1}.png`;
-      
-      const uploadResult = await cloudflareImagesService.uploadImageToS3(
-        imageBuffer,
-        filename,
-        'image/png'
-      );
-      
-      if (uploadResult.success) {
-        uploadedImages.push({
-          imageId: `https://img.kreiraj.rs/${uploadResult.data.key}`,
-        });
-      } else {
-        console.error(`Failed to upload image ${i + 1} to S3:`, uploadResult.error);
-        // Still include the base64 even if S3 upload fails
-        uploadedImages.push({
-          imageId: null,
-          uploadError: uploadResult.error,
+      if (!images.length) {
+        throw new Error("GPT_IMAGE_EMPTY");
+      }
+
+      // Upload images to S3
+      const uploadedImages = [];
+      for (let i = 0; i < images.length; i++) {
+        const base64String = images[i];
+        // Remove data URI prefix if present
+        const base64Data = base64String.includes(',') 
+          ? base64String.split(',')[1] 
+          : base64String;
+        
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+        const filename = `kreiraj-${imageResponse.created}-${i + 1}.png`;
+        
+        const uploadResult = await cloudflareImagesService.uploadImageToS3(
+          imageBuffer,
+          filename,
+          'image/png'
+        );
+        
+        if (uploadResult.success) {
+          uploadedImages.push({
+            imageId: `https://img.kreiraj.rs/${uploadResult.data.key}`,
+          });
+        } else {
+          console.error(`Failed to upload image ${i + 1} to S3:`, uploadResult.error);
+          // Still include the base64 even if S3 upload fails
+          uploadedImages.push({
+            imageId: null,
+            uploadError: uploadResult.error,
+          });
+        }
+      }
+
+      const imageExtraCostUsd = Number(process.env.OPENAI_IMAGE_LOW_COST_USD || 0)
+      await appendTokenUsageCsv({
+        originalPrompt: prompt,
+        enhancedPrompt,
+        model: `${model}:${quality}`,
+        enhanceUsage,
+        modelUsage: null,
+        extraCostUsd: imageExtraCostUsd,
+      })
+
+      console.log("GPT GENERATED");
+      return res.status(200).json({
+        message: "Image generated successfully",
+        images: uploadedImages,
+        usage: enhanceUsage,
+      });
+    } catch (gptError) {
+      console.error("ChatGPT Image Error:", gptError);
+
+      if (!process.env.LEONARDO_API_TOKEN) {
+        return res.status(500).json({
+          message: "GPT image generation failed and LEONARDO_API_TOKEN is not configured",
+          error: "LEONARDO_API_TOKEN_MISSING",
         });
       }
+
+      const { images: leonardoImages } = await generateLeonardoImagesWithPolling(enhancedPrompt);
+      const normalizedImages = normalizeLeonardoImages(leonardoImages).filter((image) => image.imageId);
+
+      if (!normalizedImages.length) {
+        return res.status(500).json({
+          message: "Leonardo image generation did not return images",
+          error: "LEONARDO_EMPTY",
+        });
+      }
+
+      await appendTokenUsageCsv({
+        originalPrompt: prompt,
+        enhancedPrompt,
+        model: "leonardo",
+        enhanceUsage,
+        modelUsage: null,
+      })
+
+      console.log("LEONARDO GENERATED");
+      return res.status(200).json({
+        message: "Image generated successfully",
+        images: normalizedImages,
+        usage: enhanceUsage,
+      });
     }
-
-    const imageExtraCostUsd = Number(process.env.OPENAI_IMAGE_LOW_COST_USD || 0)
-    await appendTokenUsageCsv({
-      originalPrompt: prompt,
-      enhancedPrompt,
-      model: `${model}:${quality}`,
-      enhanceUsage,
-      modelUsage: null,
-      extraCostUsd: imageExtraCostUsd,
-    })
-
-    return res.status(200).json({
-      message: "Image generated successfully",
-      images: uploadedImages,
-      usage: enhanceUsage,
-    });
   } catch (error) {
-    console.error("ChatGPT Image Error:", error);
+    console.error("Image Generation Error:", error);
     return res.status(500).json({
       message: "Server error: " + error.message,
       error: error.message,
