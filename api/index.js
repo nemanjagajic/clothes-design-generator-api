@@ -214,7 +214,7 @@ const createLeonardoGeneration = async (prompt) => {
       prompt,
       num_images: 2,
       width: 1024,
-      height: 1024,
+      height: 1536,
       ultra: false,
       enhancePrompt: false,
     },
@@ -453,7 +453,7 @@ app.post("/api/generate", async (req, res) => {
   // Validate prompt before processing
   const validation = validatePrompt(prompt);
   if (!validation.allowed) {
-    return res.status(403).json({ 
+    return res.status(403).json({
       message: "Prompt contains prohibited content and cannot be processed",
       error: "PROMPT_NOT_ALLOWED"
     });
@@ -469,7 +469,7 @@ app.post("/api/generate", async (req, res) => {
       const imageResponse = await openai.images.generate({
         model,
         prompt: enhancedPrompt,
-        size: "1024x1024",
+        size: "1024x1536",
         quality,
         n: 2
       });
@@ -486,19 +486,19 @@ app.post("/api/generate", async (req, res) => {
       for (let i = 0; i < images.length; i++) {
         const base64String = images[i];
         // Remove data URI prefix if present
-        const base64Data = base64String.includes(',') 
-          ? base64String.split(',')[1] 
+        const base64Data = base64String.includes(',')
+          ? base64String.split(',')[1]
           : base64String;
-        
+
         const imageBuffer = Buffer.from(base64Data, 'base64');
         const filename = `kreiraj-${imageResponse.created}-${i + 1}.png`;
-        
+
         const uploadResult = await cloudflareImagesService.uploadImageToS3(
           imageBuffer,
           filename,
           'image/png'
         );
-        
+
         if (uploadResult.success) {
           uploadedImages.push({
             imageId: `https://img.kreiraj.rs/${uploadResult.data.key}`,
