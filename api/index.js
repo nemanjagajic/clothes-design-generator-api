@@ -34,10 +34,10 @@ const getTokenUsageLogPath = () => {
 
   // Vercel/serverless filesystems are often read-only except /tmp
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    return path.join('/tmp', 'token_usage_log.csv')
+    return path.join('/tmp', 'tracking_token_usage.csv')
   }
 
-  return path.join(process.cwd(), 'token_usage_log.csv')
+  return path.join(process.cwd(), 'tracking_token_usage.csv')
 }
 
 const csvEscape = (value) => {
@@ -52,12 +52,28 @@ const csvEscape = (value) => {
 const normalizeUsage = ({ enhanceUsage, modelUsage }) => {
   const enhancePromptTokens = Number(enhanceUsage?.prompt_tokens ?? 0)
   const enhanceCompletionTokens = Number(enhanceUsage?.completion_tokens ?? 0)
-  const enhanceTotalTokens = Number(enhanceUsage?.total_tokens ?? (enhancePromptTokens + enhanceCompletionTokens))
+  const enhanceTotalTokens = Number(
+    enhanceUsage?.total_tokens ?? (enhancePromptTokens + enhanceCompletionTokens)
+  )
 
-  // Gemini usageMetadata shape
-  const modelPromptTokens = Number(modelUsage?.promptTokenCount ?? 0)
-  const modelCompletionTokens = Number(modelUsage?.candidatesTokenCount ?? 0)
-  const modelTotalTokens = Number(modelUsage?.totalTokenCount ?? (modelPromptTokens + modelCompletionTokens))
+  // Support multiple usage shapes (Gemini + OpenAI)
+  const modelPromptTokens = Number(
+    modelUsage?.promptTokenCount ??
+    modelUsage?.input_tokens ??
+    modelUsage?.prompt_tokens ??
+    0
+  )
+  const modelCompletionTokens = Number(
+    modelUsage?.candidatesTokenCount ??
+    modelUsage?.output_tokens ??
+    modelUsage?.completion_tokens ??
+    0
+  )
+  const modelTotalTokens = Number(
+    modelUsage?.totalTokenCount ??
+    modelUsage?.total_tokens ??
+    (modelPromptTokens + modelCompletionTokens)
+  )
 
   const promptTokens = enhancePromptTokens + modelPromptTokens
   const completionTokens = enhanceCompletionTokens + modelCompletionTokens
@@ -66,7 +82,7 @@ const normalizeUsage = ({ enhanceUsage, modelUsage }) => {
   return { promptTokens, completionTokens, totalTokens }
 }
 
-const estimateCostUsd = ({ model, totalTokens, extraCostUsd = 0 }) => {
+const estimateCostUsd = ({ model, totalTokens }) => {
   const modelName = String(model || '')
   const rateDefault = Number(process.env.TOKEN_COST_PER_1K_USD || 0)
   const rateOpenAI = Number(process.env.OPENAI_TOKEN_COST_PER_1K_USD || 0)
@@ -77,19 +93,18 @@ const estimateCostUsd = ({ model, totalTokens, extraCostUsd = 0 }) => {
   if (modelName.toLowerCase().startsWith('gpt') && rateOpenAI) rate = rateOpenAI
 
   const tokenCost = rate ? (Number(totalTokens || 0) / 1000) * rate : 0
-  const totalCost = tokenCost + Number(extraCostUsd || 0)
 
-  // If no rates set and no extra cost, keep it empty
-  if (!rate && !extraCostUsd) return ''
-  return totalCost.toFixed(6)
+  // If no rates set, keep it empty
+  if (!rate) return ''
+  return tokenCost.toFixed(6)
 }
 
-const appendTokenUsageCsv = async ({ originalPrompt, enhancedPrompt, model, enhanceUsage, modelUsage, extraCostUsd }) => {
+const appendTokenUsageCsv = async ({ originalPrompt, enhancedPrompt, model, enhanceUsage, modelUsage }) => {
   try {
     const logPath = getTokenUsageLogPath()
     const createdDate = new Date().toISOString()
     const { promptTokens, completionTokens, totalTokens } = normalizeUsage({ enhanceUsage, modelUsage })
-    const estimatedCostUsd = estimateCostUsd({ model, totalTokens, extraCostUsd })
+    const estimatedCostUsd = estimateCostUsd({ model, totalTokens })
 
     const header = [
       'originalPrompt',
@@ -473,6 +488,15 @@ app.post("/api/generate", async (req, res) => {
         quality,
         n: 2
       });
+
+      await appendTokenUsageCsv({
+        originalPrompt: prompt,
+        enhancedPrompt,
+        model: `${model}:${quality}`,
+        enhanceUsage,
+        modelUsage: imageResponse.usage,
+      })
+
       const images = (imageResponse.data || [])
         .map((item) => item.b64_json)
         .filter(Boolean);
@@ -513,15 +537,7 @@ app.post("/api/generate", async (req, res) => {
         }
       }
 
-      const imageExtraCostUsd = Number(process.env.OPENAI_IMAGE_LOW_COST_USD || 0)
-      await appendTokenUsageCsv({
-        originalPrompt: prompt,
-        enhancedPrompt,
-        model: `${model}:${quality}`,
-        enhanceUsage,
-        modelUsage: null,
-        extraCostUsd: imageExtraCostUsd,
-      })
+
 
       console.log("GPT GENERATED");
       return res.status(200).json({
