@@ -40,6 +40,9 @@ const getTokenUsageLogPath = () => {
   return path.join(process.cwd(), 'tracking_token_usage.csv')
 }
 
+const getGenerateRequestsLogPath = () =>
+  path.join(process.cwd(), 'generate_requests.csv')
+
 const csvEscape = (value) => {
   if (value === null || value === undefined) return ''
   const str = String(value)
@@ -136,6 +139,39 @@ const appendTokenUsageCsv = async ({ originalPrompt, enhancedPrompt, model, enha
     await fs.promises.appendFile(logPath, row, { encoding: 'utf8' })
   } catch (error) {
     console.error('Error writing token usage CSV:', error)
+  }
+}
+
+const appendGenerateRequestCsv = async ({ originalPrompt, email, imageLinks }) => {
+  try {
+    const logPath = getGenerateRequestsLogPath()
+    const createdDate = new Date().toISOString()
+    const links = Array.isArray(imageLinks) ? imageLinks : []
+
+    const header = [
+      'originalPrompt',
+      'email',
+      'linkslike1',
+      'linkslike2',
+      'createdDateTime',
+    ].join(',') + '\n'
+
+    const row = [
+      csvEscape(originalPrompt),
+      csvEscape(email || ''),
+      csvEscape(links[0] || ''),
+      csvEscape(links[1] || ''),
+      csvEscape(createdDate),
+    ].join(',') + '\n'
+
+    if (!fs.existsSync(logPath)) {
+      await fs.promises.writeFile(logPath, header + row, { encoding: 'utf8' })
+      return
+    }
+
+    await fs.promises.appendFile(logPath, row, { encoding: 'utf8' })
+  } catch (error) {
+    console.error('Error writing generate requests CSV:', error)
   }
 }
 
@@ -456,7 +492,7 @@ app.post('/api/contactUs', async (req, res) => {
 // });
 
 app.post("/api/generate", async (req, res) => {
-  const { prompt } = req.body;
+  const { prompt, email } = req.body;
   if (!prompt) {
     return res.status(400).json({ message: "Prompt is required" });
   }
@@ -540,6 +576,11 @@ app.post("/api/generate", async (req, res) => {
 
 
       console.log("GPT GENERATED");
+      await appendGenerateRequestCsv({
+        originalPrompt: prompt,
+        email,
+        imageLinks: uploadedImages.map((img) => img.imageId).filter(Boolean),
+      })
       return res.status(200).json({
         message: "Image generated successfully",
         images: uploadedImages,
@@ -574,6 +615,11 @@ app.post("/api/generate", async (req, res) => {
       })
 
       console.log("LEONARDO GENERATED");
+      await appendGenerateRequestCsv({
+        originalPrompt: prompt,
+        email,
+        imageLinks: normalizedImages.map((img) => img.imageId).filter(Boolean),
+      })
       return res.status(200).json({
         message: "Image generated successfully",
         images: normalizedImages,
