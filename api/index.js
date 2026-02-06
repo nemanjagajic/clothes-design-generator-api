@@ -263,7 +263,7 @@ const createLeonardoGeneration = async (prompt) => {
     {
       modelId: "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
       prompt,
-      num_images: 2,
+      num_images: 1,
       width: 1024,
       height: 1536,
       ultra: false,
@@ -522,7 +522,7 @@ app.post("/api/generate", async (req, res) => {
         prompt: enhancedPrompt,
         size: "1024x1536",
         quality,
-        n: 2
+        n: 1
       });
 
       await appendTokenUsageCsv({
