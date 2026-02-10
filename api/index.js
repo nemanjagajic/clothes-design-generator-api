@@ -486,7 +486,7 @@ app.post("/api/generate", async (req, res) => {
         prompt: enhancedPrompt,
         size: "1024x1536",
         quality,
-        n: 2
+        n: 1
       });
 
       await appendTokenUsageCsv({
